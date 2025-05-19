@@ -40,7 +40,7 @@ setup:
 	@cp -r $(CONFIG) $(GO_OUTPUT)/
 	@cp -r $(STORAGE) $(GO_OUTPUT)/
 	@mkdir -p $(JS_DIR) $(CSS_DIR)
-	@[ -f tsconfig.json ] || echo '{\n  "compilerOptions": {\n    "target": "es6",\n    "module": "es6",\n    "outDir": "./MarbleMaze.app/assets/js",\n    "rootDir": "./pkg/assets/ts",\n    "strict": true,\n    "esModuleInterop": true,\n    "skipLibCheck": true,\n    "forceConsistentCasingInFileNames": true,\n    "lib": ["dom", "es2015", "dom.iterable"]\n  },\n  "include": [\n    "pkg/assets/ts/**/*.ts"\n  ],\n  "exclude": [\n    "node_modules"\n  ]\n}' > tsconfig.json
+	@[ -f tsconfig.json ] || echo '{\n  "compilerOptions": {\n    "target": "es6",\n    "module": "es6",\n    "outDir": "./MarbleMaze.app/assets/js",\n    "rootDir": "./pkg/assets/ts",\n    "strict": true,\n    "esModuleInterop": true,\n    "skipLibCheck": true,\n    "forceConsistentCasingInFileNames": true,\n    "lib": ["dom", "es2017", "dom.iterable"]\n  },\n  "include": [\n    "pkg/assets/ts/**/*.ts"\n  ],\n  "exclude": [\n    "node_modules"\n  ]\n}' > tsconfig.json
 
 help:
 	@echo "Makefile for Go and TypeScript project"

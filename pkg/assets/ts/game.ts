@@ -1,6 +1,14 @@
 // Ensure Three.js is already loaded via CDN
 declare var THREE: any;
 
+// Level structure definition
+interface Level {
+    mazeSize: number;
+    startPosition: { x: number, z: number };
+    goalPosition: { x: number, z: number };
+    innerWalls: [number, number, number, number][]; // [x, z, width, depth]
+}
+
 class Game {
     private scene: any;
     private camera: any;
@@ -17,12 +25,401 @@ class Game {
     private gameWon: boolean = false;
     private walls: any[] = [];
     private goal: any;
+    private currentLevelIndex: number = 0;
+    private isPaused: boolean = false;
 
     private gameStartTime: number = 0;
     private gameEndTime: number = 0;
 
+    // Define manually created levels (first 17)
+    private levels: Level[] = [];
+
     constructor() {
         console.log("Game constructor called");
+        // Initialize the levels
+        this.initializeLevels();
+    }
+
+    // Generate a complex maze layout procedurally
+    private generateComplexMazeLayout(levelIndex: number): [number, number, number, number][] {
+        // This is a simplified generator - you might want to implement a more
+        // sophisticated maze generation algorithm for a real game
+        const walls: [number, number, number, number][] = [];
+        const seed = levelIndex * 12345; // Simple "random" seed based on level
+        const random = (min: number, max: number) => {
+            // Simple deterministic random function
+            const x = Math.sin(seed + walls.length) * 10000;
+            return min + (x - Math.floor(x)) * (max - min);
+        };
+        
+        // Number of walls increases with level
+        const numWalls = 10 + Math.min(40, Math.floor(levelIndex * 1.5));
+        
+        // Create some systematic walls first (to ensure it's solvable)
+        const mazeSize = this.getMazeSizeForLevel(levelIndex); 
+        const halfSize = Math.floor(mazeSize / 2) - 1;
+        
+        // Add some systematic walls
+        for (let i = 0; i < 5; i++) {
+            const offset = i * 2;
+            // Horizontal walls with gaps
+            walls.push([-halfSize + offset, -halfSize + i, halfSize * 2 - offset * 2 - 2, 0.5]);
+            walls.push([-halfSize + i, halfSize - offset, halfSize * 2 - offset * 2 - 2, 0.5]);
+            
+            // Leave some gaps for paths
+            const gapX = Math.floor(random(-halfSize + 2, halfSize - 2));
+            const gapWidth = 1 + Math.floor(random(1, 3));
+            // Add vertical walls
+            walls.push([-halfSize + i, -halfSize + offset + 1, 0.5, 2]);
+            walls.push([halfSize - i, -halfSize + offset + 1, 0.5, 2]);
+        }
+        
+        // Add some random obstacles
+        for (let i = 0; i < numWalls - 10; i++) {
+            const x = Math.floor(random(-halfSize + 1, halfSize - 1));
+            const z = Math.floor(random(-halfSize + 1, halfSize - 1));
+            const width = Math.floor(random(1, 4));
+            const depth = Math.floor(random(1, 4));
+            walls.push([x, z, width, depth]);
+        }
+        
+        return walls;
+    }
+
+    // Helper function to get maze size for a level index
+    private getMazeSizeForLevel(levelIndex: number): number {
+        if (levelIndex < 17) {
+            // First 17 levels have explicit sizes
+            const sizes = [10, 10, 10, 10, 12, 12, 12, 14, 14, 16, 16, 16, 18, 18, 20, 20, 22];
+            return sizes[levelIndex];
+        } else if (levelIndex < 20) {
+            return 22 + (levelIndex - 17) * 2; // Levels 18-19
+        } else {
+            // Levels 20+ grow in size incrementally
+            return Math.min(50, 26 + Math.floor((levelIndex - 20) / 5) * 2);
+        }
+    }
+
+    // Initialize all levels
+    private initializeLevels() {
+        // Level 1 - Simple intro level
+        this.levels.push({
+            mazeSize: 10,
+            startPosition: { x: -4, z: -4 },
+            goalPosition: { x: 4, z: 4 },
+            innerWalls: [
+                [0, 0, 0.5, 4] // Simple vertical wall in the middle
+            ]
+        });
+
+        // Level 2 - Add a second wall
+        this.levels.push({
+            mazeSize: 10,
+            startPosition: { x: -4, z: -4 },
+            goalPosition: { x: 4, z: 4 },
+            innerWalls: [
+                [0, 0, 0.5, 4],
+                [-2, 2, 4, 0.5]
+            ]
+        });
+
+        // Level 3 - More complex path
+        this.levels.push({
+            mazeSize: 10,
+            startPosition: { x: -4, z: -4 },
+            goalPosition: { x: 4, z: 4 },
+            innerWalls: [
+                [0, 0, 0.5, 6],
+                [-3, -2, 4, 0.5],
+                [3, 2, 4, 0.5]
+            ]
+        });
+
+        // Level 4 - Zigzag path
+        this.levels.push({
+            mazeSize: 10,
+            startPosition: { x: -4, z: -4 },
+            goalPosition: { x: 4, z: 4 },
+            innerWalls: [
+                [-2, -2, 6, 0.5],
+                [2, 0, 0.5, 4],
+                [-2, 2, 6, 0.5]
+            ]
+        });
+
+        // Level 5 - Slightly larger maze
+        this.levels.push({
+            mazeSize: 12,
+            startPosition: { x: -5, z: -5 },
+            goalPosition: { x: 5, z: 5 },
+            innerWalls: [
+                [-3, -3, 6, 0.5],
+                [0, -1, 0.5, 6],
+                [-3, 3, 6, 0.5],
+                [3, 0, 0.5, 6]
+            ]
+        });
+
+        // Level 6 - Enclosed goal
+        this.levels.push({
+            mazeSize: 12,
+            startPosition: { x: -5, z: -5 },
+            goalPosition: { x: 5, z: 5 },
+            innerWalls: [
+                [0, 0, 0.5, 8],
+                [4, 0, 0.5, 8],
+                [2, 4, 4, 0.5],
+                [2, -4, 4, 0.5]
+            ]
+        });
+
+        // Level 7 - Multiple paths
+        this.levels.push({
+            mazeSize: 12,
+            startPosition: { x: -5, z: -5 },
+            goalPosition: { x: 5, z: 5 },
+            innerWalls: [
+                [-2, -2, 8, 0.5],
+                [-2, 0, 8, 0.5],
+                [-2, 2, 8, 0.5],
+                [-4, -4, 0.5, 8],
+                [0, -4, 0.5, 8],
+                [4, -4, 0.5, 8]
+            ]
+        });
+
+        // Level 8 - Spiral pattern
+        this.levels.push({
+            mazeSize: 14,
+            startPosition: { x: -6, z: -6 },
+            goalPosition: { x: 0, z: 0 },
+            innerWalls: [
+                [-5, -5, 10, 0.5],  // Bottom horizontal
+                [-5, -5, 0.5, 10],  // Left vertical
+                [-5, 5, 10, 0.5],   // Top horizontal
+                [5, -5, 0.5, 10],   // Right vertical
+                [-3, -3, 6, 0.5],   // Inner bottom
+                [-3, -3, 0.5, 6],   // Inner left
+                [-3, 3, 6, 0.5],    // Inner top
+                [3, -3, 0.5, 6]     // Inner right
+            ]
+        });
+
+        // Level 9 - Narrow passages
+        this.levels.push({
+            mazeSize: 14,
+            startPosition: { x: -6, z: -6 },
+            goalPosition: { x: 6, z: 6 },
+            innerWalls: [
+                [-4, -4, 8, 0.5],
+                [0, -2, 0.5, 4],
+                [-4, 0, 8, 0.5],
+                [0, 2, 0.5, 4],
+                [-4, 4, 8, 0.5]
+            ]
+        });
+
+        // Level 10 - More complex with obstacles
+        this.levels.push({
+            mazeSize: 16,
+            startPosition: { x: -7, z: -7 },
+            goalPosition: { x: 7, z: 7 },
+            innerWalls: [
+                [-5, -5, 10, 0.5],
+                [-5, -5, 0.5, 10],
+                [-5, 5, 10, 0.5],
+                [5, -5, 0.5, 10],
+                [-3, -3, 6, 0.5],
+                [-3, -3, 0.5, 6],
+                [-3, 3, 6, 0.5],
+                [3, -3, 0.5, 6],
+                [0, 0, 2, 2]  // Center obstacle
+            ]
+        });
+
+        // Level 11 - Grid pattern
+        this.levels.push({
+            mazeSize: 16,
+            startPosition: { x: -7, z: -7 },
+            goalPosition: { x: 7, z: 7 },
+            innerWalls: [
+                [-5, -3, 10, 0.5],
+                [-5, 0, 10, 0.5],
+                [-5, 3, 10, 0.5],
+                [-3, -5, 0.5, 10],
+                [0, -5, 0.5, 10],
+                [3, -5, 0.5, 10]
+            ]
+        });
+
+        // Level 12 - Zigzag path 2
+        this.levels.push({
+            mazeSize: 16,
+            startPosition: { x: -7, z: -7 },
+            goalPosition: { x: 7, z: 7 },
+            innerWalls: [
+                [-6, -4, 12, 0.5],
+                [0, -4, 0.5, 8],
+                [-6, 4, 12, 0.5],
+                [-6, 0, 12, 0.5]
+            ]
+        });
+
+        // Level 13 - Concentric squares
+        this.levels.push({
+            mazeSize: 18,
+            startPosition: { x: -8, z: -8 },
+            goalPosition: { x: 0, z: 0 },
+            innerWalls: [
+                [-6, -6, 12, 0.5],  // Outer bottom
+                [-6, -6, 0.5, 12],  // Outer left
+                [-6, 6, 12, 0.5],   // Outer top
+                [6, -6, 0.5, 12],   // Outer right
+                [-3, -3, 6, 0.5],   // Inner bottom
+                [-3, -3, 0.5, 6],   // Inner left
+                [-3, 3, 6, 0.5],    // Inner top
+                [3, -3, 0.5, 6],    // Inner right
+                // Openings in the walls
+                [-6, 0, 0.5, 2],    // Opening in outer left
+                [0, -6, 2, 0.5],    // Opening in outer bottom
+                [6, 0, 0.5, 2],     // Opening in outer right
+                [0, 6, 2, 0.5],     // Opening in outer top
+                [-3, -1, 0.5, 2],   // Opening in inner left
+                [0, -3, 2, 0.5],    // Opening in inner bottom
+                [3, 1, 0.5, 2],     // Opening in inner right
+                [0, 3, 2, 0.5]      // Opening in inner top
+            ]
+        });
+
+        // Level 14 - Maze with central chamber
+        this.levels.push({
+            mazeSize: 18,
+            startPosition: { x: -8, z: -8 },
+            goalPosition: { x: 0, z: 0 },
+            innerWalls: [
+                // Outer walls
+                [-6, -6, 12, 0.5],
+                [-6, -6, 0.5, 12],
+                [-6, 6, 12, 0.5],
+                [6, -6, 0.5, 12],
+                // Inner chamber
+                [-2, -2, 4, 0.5],
+                [-2, -2, 0.5, 4],
+                [-2, 2, 4, 0.5],
+                [2, -2, 0.5, 4],
+                // Access path
+                [0, -6, 2, 0.5],
+                [0, -6, 0.5, 4],
+                [0, -2, 2, 0.5]
+            ]
+        });
+
+        // Level 15 - Complex with multiple chambers
+        this.levels.push({
+            mazeSize: 20,
+            startPosition: { x: -9, z: -9 },
+            goalPosition: { x: 9, z: 9 },
+            innerWalls: [
+                // Outer boundary
+                [-7, -7, 14, 0.5],
+                [-7, -7, 0.5, 14],
+                [-7, 7, 14, 0.5],
+                [7, -7, 0.5, 14],
+                // Internal divisions
+                [-3, -7, 0.5, 10],
+                [3, -3, 0.5, 10],
+                [-7, -3, 8, 0.5],
+                [-3, 3, 10, 0.5],
+                // Passages
+                [-7, -5, 2, 0.5],
+                [-5, -3, 2, 0.5],
+                [-3, -1, 2, 0.5],
+                [-1, 3, 2, 0.5],
+                [3, 5, 2, 0.5],
+                [5, 7, 2, 0.5]
+            ]
+        });
+
+        // Level 16
+        this.levels.push({
+            mazeSize: 20,
+            startPosition: { x: -9, z: -9 },
+            goalPosition: { x: 9, z: 9 },
+            innerWalls: [
+                // Create a complex pattern here
+                [-8, -4, 16, 0.5],
+                [-4, -8, 0.5, 16],
+                [4, -8, 0.5, 16],
+                [-8, 4, 16, 0.5],
+                // Add obstacles
+                [-2, -2, 4, 0.5],
+                [-2, -2, 0.5, 4],
+                [-2, 2, 4, 0.5],
+                [2, -2, 0.5, 4],
+                [0, 0, 2, 2]
+            ]
+        });
+
+        // Level 17
+        this.levels.push({
+            mazeSize: 22,
+            startPosition: { x: -10, z: -10 },
+            goalPosition: { x: 10, z: 10 },
+            innerWalls: [
+                // Create a more complex spiral
+                [-8, -8, 16, 0.5],
+                [-8, -8, 0.5, 16],
+                [-8, 8, 16, 0.5],
+                [8, -8, 0.5, 16],
+                [-6, -6, 12, 0.5],
+                [-6, -6, 0.5, 12],
+                [-6, 6, 12, 0.5],
+                [6, -6, 0.5, 12],
+                [-4, -4, 8, 0.5],
+                [-4, -4, 0.5, 8],
+                [-4, 4, 8, 0.5],
+                [4, -4, 0.5, 8],
+                // Add openings
+                [-8, 0, 0.5, 2],
+                [-6, -2, 0.5, 2],
+                [-4, 0, 0.5, 2],
+                [-2, -2, 0.5, 2],
+                [0, 0, 0.5, 2],
+                [2, -2, 0.5, 2],
+                [4, 0, 0.5, 2],
+                [6, -2, 0.5, 2]
+            ]
+        });
+
+        // Generate procedural levels
+        this.generateProceduralLevels();
+    }
+
+    // Generate procedural levels (18-50)
+    private generateProceduralLevels() {
+        // Levels 18-20
+        for (let i = 18; i <= 20; i++) {
+            const mazeSize = this.getMazeSizeForLevel(i);
+            const halfSize = Math.floor(mazeSize / 2);
+            this.levels.push({
+                mazeSize: mazeSize,
+                startPosition: { x: -halfSize + 1, z: -halfSize + 1 },
+                goalPosition: { x: halfSize - 1, z: halfSize - 1 },
+                innerWalls: this.generateComplexMazeLayout(i)
+            });
+        }
+
+        // Levels 21-50 - Generated programmatically
+        for (let i = 21; i <= 50; i++) {
+            const mazeSize = this.getMazeSizeForLevel(i);
+            const halfSize = Math.floor(mazeSize / 2);
+            this.levels.push({
+                mazeSize: mazeSize,
+                startPosition: { x: -halfSize + 1, z: -halfSize + 1 },
+                goalPosition: { x: halfSize - 1, z: halfSize - 1 },
+                innerWalls: this.generateComplexMazeLayout(i)
+            });
+        }
     }
 
     init() {
@@ -30,9 +427,10 @@ class Game {
         try {
             this.initThreeJS();
             this.createLights();
-            this.createMaze();
-            this.createMarble();
-            this.createGoal();
+            
+            // Load first level instead of hardcoded maze
+            this.loadLevel(this.currentLevelIndex);
+            
             this.setupEventListeners();
             
             // Set the start time when initializing
@@ -42,6 +440,12 @@ class Game {
             
             // Load highscores on initialization
             this.loadHighscores();
+            
+            // Setup level UI elements
+            this.updateLevelDisplay();
+            
+            // Connect win screen buttons
+            this.setupLevelButtons();
             
             // Notify that game is ready
             window.dispatchEvent(new Event('gameReady'));
@@ -153,19 +557,9 @@ class Game {
             roughness: 0.8
         });
         
-        // Define inner maze walls - these coordinates create a simple maze pattern
-        // Each entry is [x, z, width, depth] where:
-        // - (x,z) is the center position of the wall
-        // - width is the width along x-axis
-        // - depth is the depth along z-axis
-        const innerWalls = [
-            [-3, -2, 4, 0.5],  // Horizontal wall
-            [0, 0, 0.5, 4],    // Vertical wall
-            [3, 2, 4, 0.5],    // Horizontal wall
-            [-2, 3, 0.5, 4],   // Vertical wall
-            [2, -3, 0.5, 4],   // Vertical wall
-            [0, -3, 4, 0.5],   // Horizontal wall
-        ];
+        // Get current level inner walls
+        const currentLevel = this.levels[this.currentLevelIndex];
+        const innerWalls = currentLevel.innerWalls;
         
         innerWalls.forEach(wall => {
             const [x, z, width, depth] = wall;
@@ -230,6 +624,61 @@ class Game {
         this.maze.add(this.goal);
     }
 
+    // Define these methods before they're used
+    private handleOrientation(event: DeviceOrientationEvent) {
+        if (event.beta !== null && event.gamma !== null) {
+            // Convert degrees to radians and scale down for smoother control
+            this.mazeTiltZ = THREE.MathUtils.degToRad(event.beta) * 0.1;
+            this.mazeTiltX = THREE.MathUtils.degToRad(event.gamma) * 0.1;
+        }
+    }
+
+    private handleMouseMove(event: MouseEvent) {
+        // Map mouse position to tilt angle
+        const sensitivity = 0.01;
+        this.mazeTiltX = ((event.clientX / window.innerWidth) - 0.5) * Math.PI * sensitivity;
+        this.mazeTiltZ = ((event.clientY / window.innerHeight) - 0.5) * Math.PI * sensitivity;
+    }
+
+    private togglePause() {
+        // Toggle the pause screen via DOM
+        const pauseScreen = document.getElementById('pauseScreen');
+        if (pauseScreen) {
+            pauseScreen.classList.toggle('hidden');
+        }
+        
+        this.isPaused = !this.isPaused;
+        
+        // If we just paused, stop the timer
+        // If we just unpaused, resume the timer
+        console.log(`Game ${this.isPaused ? 'paused' : 'resumed'}`);
+    }
+
+    public resetMarble() {
+        this.marble.position.set(
+            this.startPosition.x, 
+            this.marbleRadius + 0.25,
+            this.startPosition.z
+        );
+        this.marble.velocity.set(0, 0, 0);
+        this.gameWon = false;
+        
+        // Reset times when resetting the marble
+        this.gameStartTime = Date.now();
+        this.gameEndTime = 0;
+    }
+    
+    private showErrorMessage(message: string) {
+        // Show error in the UI instead of console
+        const loadingScreen = document.getElementById('loadingScreen');
+        if (loadingScreen) {
+            const content = loadingScreen.querySelector('.overlay-content');
+            if (content) {
+                content.innerHTML = `<h2>Error</h2><p>${message}</p>`;
+            }
+        }
+    }
+
     private setupEventListeners() {
         // Setup device orientation tilt controls
         if (window.DeviceOrientationEvent) {
@@ -247,58 +696,130 @@ class Game {
                 this.resetMarble();
             }
         });
+
+        // Also allow the game to be controlled via virtual buttons
+        this.setupButtonControls();
     }
-    
-    private togglePause() {
-        // Toggle the pause screen via DOM
-        const pauseScreen = document.getElementById('pauseScreen');
-        if (pauseScreen) {
-            pauseScreen.classList.toggle('hidden');
+
+    private setupButtonControls() {
+        // Expose game methods to window for button access
+        (window as any).gameInstance = this;
+        
+        // Reset button
+        const resetBtn = document.getElementById('resetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => this.resetMarble());
         }
         
-        // You could also pause the game logic here
-        // this.isPaused = !this.isPaused;
-    }
-
-    private handleOrientation(event: DeviceOrientationEvent) {
-        if (event.beta !== null && event.gamma !== null) {
-            // Convert degrees to radians and scale down for smoother control
-            this.mazeTiltZ = THREE.MathUtils.degToRad(event.beta) * 0.1;
-            this.mazeTiltX = THREE.MathUtils.degToRad(event.gamma) * 0.1;
+        // Pause button
+        const pauseBtn = document.getElementById('pauseBtn');
+        if (pauseBtn) {
+            pauseBtn.addEventListener('click', () => this.togglePause());
+        }
+        
+        // Mute button (if implemented)
+        const muteBtn = document.getElementById('muteBtn');
+        if (muteBtn) {
+            muteBtn.addEventListener('click', () => console.log('Mute functionality not implemented yet'));
         }
     }
 
-    private handleMouseMove(event: MouseEvent) {
-        // Map mouse position to tilt angle
-        const sensitivity = 0.01;
-        this.mazeTiltX = ((event.clientX / window.innerWidth) - 0.5) * Math.PI * sensitivity;
-        this.mazeTiltZ = ((event.clientY / window.innerHeight) - 0.5) * Math.PI * sensitivity;
-    }
-
-    private showErrorMessage(message: string) {
-        // Show error in the UI instead of console
-        const loadingScreen = document.getElementById('loadingScreen');
-        if (loadingScreen) {
-            const content = loadingScreen.querySelector('.overlay-content');
-            if (content) {
-                content.innerHTML = `<h2>Error</h2><p>${message}</p>`;
-            }
+    private loadLevel(levelIndex: number) {
+        // Clear existing maze if any
+        if (this.maze) {
+            this.scene.remove(this.maze);
+            this.walls = [];
         }
-    }
-
-    // Make this implementation public instead of private (around line 512)
-    public resetMarble() {
-        this.marble.position.set(
-            this.startPosition.x, 
-            this.marbleRadius + 0.25,
-            this.startPosition.z
-        );
-        this.marble.velocity.set(0, 0, 0);
+        
+        // Get level data
+        const level = this.levels[levelIndex];
+        
+        // Update properties
+        this.mazeSize = level.mazeSize;
+        this.startPosition = level.startPosition;
+        this.goalPosition = level.goalPosition;
+        
+        // Create maze
+        this.createMaze();
+        
+        // Create marble at start position
+        if (this.marble) {
+            this.scene.remove(this.marble);
+        }
+        this.createMarble();
+        
+        // Reset game state
         this.gameWon = false;
-        
-        // Reset times when resetting the marble
         this.gameStartTime = Date.now();
         this.gameEndTime = 0;
+        
+        // Update level display
+        this.updateLevelDisplay();
+        
+        console.log(`Level ${levelIndex + 1} loaded`);
+    }
+
+    private updateLevelDisplay() {
+        const levelElement = document.getElementById('level');
+        if (levelElement) {
+            levelElement.textContent = `Level ${this.currentLevelIndex + 1}`;
+        }
+    }
+
+    private setupLevelButtons() {
+        // Next Level button
+        const nextLevelBtn = document.getElementById('nextLevelBtn');
+        if (nextLevelBtn) {
+            nextLevelBtn.addEventListener('click', () => this.nextLevel());
+        }
+        
+        // Restart button in win screen
+        const restartBtn = document.getElementById('restartBtn');
+        if (restartBtn) {
+            restartBtn.addEventListener('click', () => this.restartLevel());
+        }
+        
+        // Restart button in pause screen
+        const restartGameBtn = document.getElementById('restartGameBtn');
+        if (restartGameBtn) {
+            restartGameBtn.addEventListener('click', () => {
+                const pauseScreen = document.getElementById('pauseScreen');
+                if (pauseScreen) {
+                    pauseScreen.classList.add('hidden');
+                }
+                this.restartLevel();
+            });
+        }
+    }
+
+    public nextLevel() {
+        // Hide win screen
+        const winScreen = document.getElementById('winScreen');
+        if (winScreen) {
+            winScreen.classList.add('hidden');
+        }
+        
+        // Go to next level if not at max
+        if (this.currentLevelIndex < this.levels.length - 1) {
+            this.currentLevelIndex++;
+            this.loadLevel(this.currentLevelIndex);
+        } else {
+            // Show game completion screen or loop back to first level
+            console.log("All levels completed! Starting from the beginning.");
+            this.currentLevelIndex = 0;
+            this.loadLevel(this.currentLevelIndex);
+        }
+    }
+
+    public restartLevel() {
+        // Hide any overlay screens
+        const winScreen = document.getElementById('winScreen');
+        if (winScreen) {
+            winScreen.classList.add('hidden');
+        }
+        
+        // Reload current level
+        this.loadLevel(this.currentLevelIndex);
     }
 
     private updateMarblePhysics() {
@@ -452,6 +973,22 @@ class Game {
             const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
             timeSpan.textContent = formattedTime;
             
+            // Update text to show level completed
+            const winTitle = winScreen.querySelector('h2');
+            if (winTitle) {
+                winTitle.textContent = `Level ${this.currentLevelIndex + 1} Complete!`;
+            }
+            
+            // Show/hide next level button based on current level
+            const nextLevelBtn = document.getElementById('nextLevelBtn');
+            if (nextLevelBtn) {
+                if (this.currentLevelIndex >= this.levels.length - 1) {
+                    nextLevelBtn.textContent = "Back to Level 1";
+                } else {
+                    nextLevelBtn.textContent = "Next Level";
+                }
+            }
+            
             winScreen.classList.remove('hidden');
         }
     }
@@ -477,7 +1014,7 @@ class Game {
                     playerName: playerName,
                     score: score,
                     time: timeSeconds,
-                    level: level
+                    level: this.currentLevelIndex + 1 // Use the actual level number
                 })
             });
             

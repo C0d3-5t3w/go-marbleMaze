@@ -309,6 +309,58 @@
   100% { transform: rotate(360deg); }
 }
 
+/* Highscores Table */
+.highscores-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  color: white;
+}
+
+.highscores-table th, 
+.highscores-table td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.highscores-table th {
+  background-color: rgba(0, 0, 0, 0.3);
+  font-weight: bold;
+  color: var(--color-primary);
+}
+
+.highscores-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Level indicator animation */
+#level {
+  transition: all 0.3s ease;
+}
+
+#level.level-change {
+  transform: scale(1.2);
+  color: var(--color-primary);
+}
+
+/* Win screen customizations for levels */
+.level-complete-header {
+  margin-bottom: 10px;
+  color: var(--color-primary);
+}
+
+.level-stats {
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
 /* Utility Classes */
 .hidden {
   display: none !important;

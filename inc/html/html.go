@@ -194,6 +194,27 @@ var tmpl = template.Must(template.New("game").Parse(`
 		<!-- Scripts -->
 		<script src="assets/js/main.js"></script>
 		<script src="assets/js/game.js"></script>
+		<script>
+			// Connect UI elements directly to game instance
+			document.addEventListener('DOMContentLoaded', function() {
+				// Wait for game instance to be available
+				const checkGameReady = setInterval(() => {
+					if (window.gameInstance) {
+						clearInterval(checkGameReady);
+						
+						// Reset button - direct connection to game
+						const resetBtn = document.getElementById('resetBtn');
+						if (resetBtn) {
+							resetBtn.addEventListener('click', () => window.gameInstance.resetMarble());
+						}
+						
+						// Other buttons are set up in the game.js setupButtonControls method
+						
+						console.log('UI elements connected to game instance');
+					}
+				}, 100);
+			});
+		</script>
 	</body>
 	</html>
 `))

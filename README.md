@@ -63,23 +63,32 @@ A 3D marble maze game where you tilt the maze to guide a marble to the end goal.
 
 ```
 go-marbleMaze/
-├── assets/            # Compiled assets (generated)
-│   ├── css/           # Compiled CSS files
-│   └── js/            # Compiled JavaScript files
-├── cmd/               # Command-line applications
-│   └── main.go        # Main Go application entry point
-├── inc/               # Go packages
-│   ├── config/        # Configuration handling
-│   └── html/          # HTML templating
-├── pkg/               # Source files
-│   ├── assets/        # Asset source files
-│   │   ├── sass/      # SCSS stylesheets
-│   │   └── ts/        # TypeScript source files
-│   └── config.json    # Configuration file
-├── go.mod             # Go module definition
-├── makefile           # Build automation
-├── README.md          # This file
-└── tsconfig.json      # TypeScript configuration
+├── cmd/                          # Command-line applications
+│   └── main.go                   # Main Go application entry point
+├── inc/                          # Go packages
+│   ├── config/                   # Configuration handling
+│   │   └── config.go             # Config file
+│   ├── html/                     # HTML templating
+│   │   └── html.go               # Html file
+│   └── storage/                  # Game storage
+│       ├── storage.go            # Storage entry point
+│       └── handlers.go           # Storage Handler
+├── pkg/                          # Source files
+│   ├── assets/                   # Asset source files
+│   │   ├── sass/                 # SCSS stylesheets
+│   │   │   ├── main.scss         # Main sass file
+│   │   │   └── game.module.scss  # Game sass file 
+│   │   └── ts/                   # TypeScript source files
+│   │       ├── main.ts           # Main Typescript file
+│   │       └── game.ts           # Game Typescript file
+│   ├── config.json               # Configuration file
+│   └── storage.json              # Storage file
+├── .editorconfig                 # Editor config file
+├── .gitignore                    # Git ignore file
+├── go.mod                        # Go module definition
+├── makefile                      # Build automation
+├── README.md                     # This file
+└── LICENSE                       # License file
 ```
 
 ## Browser Compatibility

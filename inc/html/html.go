@@ -19,7 +19,7 @@ var tmpl = template.Must(template.New("game").Parse(`
 		<link rel="icon" href="assets/favicon.ico" type="image/x-icon">
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r132/three.min.js"></script>
 	</head>
-	<body>
+	<body class="halloween-theme">
 		<div class="app-container">
 			<!-- Top navbar with minimal game info -->
 			<header class="game-header">
@@ -69,32 +69,33 @@ var tmpl = template.Must(template.New("game").Parse(`
 					</div>
 				</div>
 
-				<!-- Instructions panel - toggles with the help button -->
-				<div id="instructionsPanel" class="side-panel hidden">
-					<div class="panel-header">
-						<h2>How to Play</h2>
-						<button class="close-btn" aria-label="Close instructions">×</button>
-					</div>
-					<div class="panel-content">
-						<div class="desktop-instructions">
-							<h3>Desktop Controls</h3>
-							<p>Move your mouse to tilt the maze and guide the marble to the green goal!</p>
-							<ul>
-								<li><strong>Mouse:</strong> Tilt the maze</li>
-								<li><strong>R key:</strong> Reset marble</li>
-								<li><strong>P key:</strong> Pause game</li>
-								<li><strong>M key:</strong> Mute sound</li>
-							</ul>
+				<!-- Instructions modal (converted from side panel) -->
+				<div id="instructionsModal" class="modal hidden">
+					<div class="modal-content">
+						<div class="modal-header">
+							<button class="close-modal" aria-label="Close instructions">How To Play:</button>
 						</div>
-						<div class="mobile-instructions">
-							<h3>Mobile Controls</h3>
-							<p>Tilt your device to control the maze and reach the green goal!</p>
-							<ul>
-								<li><strong>Device tilt:</strong> Control the maze</li>
-								<li><strong>Tap ↺:</strong> Reset marble</li>
-								<li><strong>Tap ❚❚:</strong> Pause game</li>
-								<li><strong>Tap 🔊:</strong> Mute sound</li>
-							</ul>
+						<div class="modal-body">
+							<div class="desktop-instructions">
+								<h3>Desktop Controls</h3>
+								<p>Move your mouse to tilt the maze and guide the marble to the green goal!</p>
+								<ul>
+									<li><strong>Mouse:</strong> Tilt the maze</li>
+									<li><strong>R key:</strong> Reset marble</li>
+									<li><strong>P key:</strong> Pause game</li>
+									<li><strong>M key:</strong> Mute sound</li>
+								</ul>
+							</div>
+							<div class="mobile-instructions">
+								<h3>Mobile Controls</h3>
+								<p>Tilt your device to control the maze and reach the green goal!</p>
+								<ul>
+									<li><strong>Device tilt:</strong> Control the maze</li>
+									<li><strong>Tap ↺:</strong> Reset marble</li>
+									<li><strong>Tap ❚❚:</strong> Pause game</li>
+									<li><strong>Tap 🔊:</strong> Mute sound</li>
+								</ul>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -202,13 +203,42 @@ var tmpl = template.Must(template.New("game").Parse(`
 					if (window.gameInstance) {
 						clearInterval(checkGameReady);
 						
-						// Reset button - direct connection to game
+						// Connect game control buttons
 						const resetBtn = document.getElementById('resetBtn');
 						if (resetBtn) {
 							resetBtn.addEventListener('click', () => window.gameInstance.resetMarble());
 						}
 						
-						// Other buttons are set up in the game.js setupButtonControls method
+						const pauseBtn = document.getElementById('pauseBtn');
+						if (pauseBtn) {
+							pauseBtn.addEventListener('click', () => window.gameInstance.togglePause());
+						}
+						
+						const leaderboardBtn = document.getElementById('leaderboardBtn');
+						if (leaderboardBtn) {
+							leaderboardBtn.addEventListener('click', () => window.gameInstance.showHighscoresPanel());
+						}
+						
+						// Connect help button to show instructions modal
+						const helpBtn = document.getElementById('helpBtn');
+						if (helpBtn) {
+							helpBtn.addEventListener('click', () => {
+								const instructionsModal = document.getElementById('instructionsModal');
+								if (instructionsModal) {
+									instructionsModal.classList.remove('hidden');
+								}
+							});
+						}
+						
+						// Connect all close modal buttons
+						document.querySelectorAll('.close-modal').forEach(btn => {
+							btn.addEventListener('click', () => {
+								const modal = btn.closest('.modal');
+								if (modal) {
+									modal.classList.add('hidden');
+								}
+							});
+						});
 						
 						console.log('UI elements connected to game instance');
 					}

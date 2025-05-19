@@ -152,6 +152,13 @@ class Main {
             leaderboardBtn.addEventListener('click', () => {
                 console.log('Leaderboard button clicked');
                 this.toggleHighscoresPanel();
+                
+                // If game instance is available, use its method to load latest highscores
+                if ((window as any).gameInstance) {
+                    (window as any).gameInstance.loadHighscores();
+                } else {
+                    this.fetchAndDisplayHighscores();
+                }
             });
         }
 

@@ -2,201 +2,238 @@ package storage
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
+	"io/ioutil"
 	"os"
 	"sort"
 	"sync"
 	"time"
 )
 
-// Constants
 const (
 	DefaultStoragePath = "storage.json"
-	MaxHighscores      = 10
+	MaxHighscores      = 100
 )
 
-// Highscore represents a player's score record
 type Highscore struct {
 	PlayerName string    `json:"playerName"`
-	Score      int       `json:"score"`
-	Time       float64   `json:"time"` // completion time in seconds
 	Level      int       `json:"level"`
+	Score      int       `json:"score"`
+	Time       float64   `json:"time"`
 	Date       time.Time `json:"date"`
 }
 
-// HighscoreList holds all highscores
-type HighscoreList struct {
+type HighscoreData struct {
 	Scores []Highscore `json:"scores"`
 }
 
 var (
-	highscores *HighscoreList
-	mu         sync.RWMutex
-	loaded     bool
+	highscores  HighscoreData
+	mu          sync.Mutex
+	storagePath string = DefaultStoragePath
 )
 
-// InitStorage ensures the storage is ready, creating default storage if needed
+// Initialize the storage system
 func InitStorage() error {
-	if loaded {
-		return nil
+	return loadHighscores()
+}
+
+// Set custom storage path
+func SetStoragePath(path string) {
+	storagePath = path
+}
+
+// Load highscores from storage
+func loadHighscores() error {
+	// Check if file exists
+	if _, err := os.Stat(storagePath); os.IsNotExist(err) {
+		// Create empty highscores file
+		highscores = HighscoreData{Scores: []Highscore{}}
+		return saveHighscores()
 	}
 
+	// Read file
+	data, err := ioutil.ReadFile(storagePath)
+	if err != nil {
+		return err
+	}
+
+	// Parse JSON
+	err = json.Unmarshal(data, &highscores)
+	if err != nil {
+		return err
+	}
+
+	// Sort highscores
+	sortHighscores()
+
+	return nil
+}
+
+// Save highscores to storage
+func saveHighscores() error {
+	// Sort before saving
+	sortHighscores()
+
+	// Convert to JSON
+	data, err := json.MarshalIndent(highscores, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	// Write to file
+	return ioutil.WriteFile(storagePath, data, 0644)
+}
+
+// Get highscores
+func GetHighscores() ([]Highscore, error) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	// Check if storage file exists
-	if _, err := os.Stat(DefaultStoragePath); os.IsNotExist(err) {
-		// Create empty highscores
-		highscores = &HighscoreList{
-			Scores: []Highscore{},
-		}
+	scores := make([]Highscore, len(highscores.Scores))
+	copy(scores, highscores.Scores)
 
-		// Save initial empty storage
-		err = saveToFile()
-		if err != nil {
-			return fmt.Errorf("failed to create initial storage: %w", err)
-		}
-	} else {
-		// Load existing highscores
-		err = loadFromFile()
-		if err != nil {
-			return fmt.Errorf("failed to load highscores: %w", err)
-		}
-	}
-
-	loaded = true
-	return nil
+	return scores, nil
 }
 
-// loadFromFile reads highscores from the storage file
-func loadFromFile() error {
-	file, err := os.Open(DefaultStoragePath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
+// Get top N highscores
+func GetTopHighscores(n int) ([]Highscore, error) {
+	mu.Lock()
+	defer mu.Unlock()
 
-	highscores = &HighscoreList{}
-	decoder := json.NewDecoder(file)
-	err = decoder.Decode(highscores)
-	if err != nil {
-		return err
+	// Sort to ensure they're in the right order
+	sortHighscores()
+
+	if n > len(highscores.Scores) {
+		n = len(highscores.Scores)
 	}
 
-	return nil
+	scores := make([]Highscore, n)
+	copy(scores, highscores.Scores[:n])
+
+	return scores, nil
 }
 
-// saveToFile writes the current highscores to the storage file
-func saveToFile() error {
-	file, err := os.Create(DefaultStoragePath)
-	if err != nil {
-		return err
+// Submit a new highscore
+func SubmitHighscore(playerName string, level int, score int, timeValue float64) (bool, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Create new highscore entry
+	newScore := Highscore{
+		PlayerName: playerName,
+		Level:      level,
+		Score:      score,
+		Time:       timeValue,
+		Date:       time.Now(), // Now using the time package correctly
 	}
-	defer file.Close()
 
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	err = encoder.Encode(highscores)
-	if err != nil {
-		return err
+	// Add to list
+	highscores.Scores = append(highscores.Scores, newScore)
+
+	// Sort highscores
+	sortHighscores()
+
+	// Trim if needed
+	if len(highscores.Scores) > MaxHighscores {
+		highscores.Scores = highscores.Scores[:MaxHighscores]
 	}
 
-	return nil
-}
-
-// AddHighscore adds a new highscore to the list if it qualifies
-// Returns true if the score was added to the highscores
-func AddHighscore(player string, score int, timeSeconds float64, level int) (bool, error) {
-	if err := InitStorage(); err != nil {
+	// Save to disk
+	err := saveHighscores()
+	if err != nil {
 		return false, err
 	}
 
-	if player == "" {
-		return false, errors.New("player name cannot be empty")
+	// Check if the new score made it to the top (is it still in the list?)
+	isInTop := false
+	for _, s := range highscores.Scores {
+		if s.PlayerName == newScore.PlayerName && s.Date == newScore.Date {
+			isInTop = true
+			break
+		}
 	}
 
+	return isInTop, nil
+}
+
+// AddHighscore is an alias for SubmitHighscore to maintain API compatibility
+func AddHighscore(playerName string, score int, time float64, level int) (bool, error) {
+	return SubmitHighscore(playerName, level, score, time)
+}
+
+// sortHighscores sorts highscores by level and then by time
+func sortHighscores() {
+	// First sort by time (ascending)
+	sort.Slice(highscores.Scores, func(i, j int) bool {
+		return highscores.Scores[i].Time < highscores.Scores[j].Time
+	})
+
+	// Then sort by level (ascending)
+	sort.Slice(highscores.Scores, func(i, j int) bool {
+		// If same level, keep time order
+		if highscores.Scores[i].Level == highscores.Scores[j].Level {
+			return highscores.Scores[i].Time < highscores.Scores[j].Time
+		}
+		return highscores.Scores[i].Level < highscores.Scores[j].Level
+	})
+}
+
+// SortHighscores is a public function to trigger sorting (for external callers)
+func SortHighscores() {
 	mu.Lock()
 	defer mu.Unlock()
-
-	// Create new highscore
-	newScore := Highscore{
-		PlayerName: player,
-		Score:      score,
-		Time:       timeSeconds,
-		Level:      level,
-		Date:       time.Now(),
-	}
-
-	// Check if it qualifies (either we have fewer than max scores or it's better than the lowest)
-	if len(highscores.Scores) < MaxHighscores {
-		highscores.Scores = append(highscores.Scores, newScore)
-		sortHighscores()
-		err := saveToFile()
-		return true, err
-	}
-
-	// Sort to ensure the lowest score is at the end
 	sortHighscores()
-
-	// Compare with the lowest score (time-based comparison - lower is better)
-	if len(highscores.Scores) > 0 && highscores.Scores[len(highscores.Scores)-1].Time > newScore.Time {
-		// Replace the lowest score
-		highscores.Scores[len(highscores.Scores)-1] = newScore
-		sortHighscores()
-		err := saveToFile()
-		return true, err
-	}
-
-	// Score didn't qualify
-	return false, nil
 }
 
-// GetHighscores returns all stored highscores
-func GetHighscores() ([]Highscore, error) {
-	if err := InitStorage(); err != nil {
-		return nil, err
-	}
-
-	mu.RLock()
-	defer mu.RUnlock()
-
-	// Return a copy to prevent external modification
-	result := make([]Highscore, len(highscores.Scores))
-	copy(result, highscores.Scores)
-
-	return result, nil
-}
-
-// GetTopHighscores returns the top N highscores
-func GetTopHighscores(n int) ([]Highscore, error) {
+// GetTopHighscoresByLevel returns the top N highscores for a specific level
+func GetTopHighscoresByLevel(level int, n int) ([]Highscore, error) {
 	scores, err := GetHighscores()
 	if err != nil {
 		return nil, err
 	}
 
-	if n > len(scores) {
-		n = len(scores)
+	// Filter scores by level
+	var levelScores []Highscore
+	for _, score := range scores {
+		if score.Level == level {
+			levelScores = append(levelScores, score)
+		}
 	}
 
-	return scores[:n], nil
-}
-
-// sortHighscores sorts the highscores by time (ascending)
-func sortHighscores() {
-	sort.Slice(highscores.Scores, func(i, j int) bool {
-		return highscores.Scores[i].Time < highscores.Scores[j].Time
+	// Sort by time (ascending)
+	sort.Slice(levelScores, func(i, j int) bool {
+		return levelScores[i].Time < levelScores[j].Time
 	})
+
+	if n > len(levelScores) {
+		n = len(levelScores)
+	}
+
+	return levelScores[:n], nil
 }
 
-// ClearHighscores removes all highscores (used for testing)
+// Clear all highscores
 func ClearHighscores() error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	highscores = &HighscoreList{
-		Scores: []Highscore{},
-	}
+	highscores.Scores = []Highscore{}
+	return saveHighscores()
+}
 
-	return saveToFile()
+// Get stats about highscores
+func GetStats() (int, int, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	totalScores := len(highscores.Scores)
+	uniquePlayers := 0
+
+	players := make(map[string]bool)
+	for _, score := range highscores.Scores {
+		players[score.PlayerName] = true
+	}
+	uniquePlayers = len(players)
+
+	return totalScores, uniquePlayers, nil
 }

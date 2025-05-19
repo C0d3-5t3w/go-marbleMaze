@@ -31,8 +31,26 @@ func GetHighscoresHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Get highscores
-	scores, err := GetTopHighscores(limit)
+	// Get level filter (optional query parameter)
+	levelStr := r.URL.Query().Get("level")
+
+	var scores []Highscore
+	var err error
+
+	if levelStr != "" {
+		// If level is specified, get scores for that level
+		level, parseErr := strconv.Atoi(levelStr)
+		if parseErr == nil {
+			scores, err = GetTopHighscoresByLevel(level, limit)
+		} else {
+			http.Error(w, "Invalid level parameter", http.StatusBadRequest)
+			return
+		}
+	} else {
+		// Otherwise get top scores across all levels
+		scores, err = GetTopHighscores(limit)
+	}
+
 	if err != nil {
 		http.Error(w, "Failed to retrieve highscores: "+err.Error(), http.StatusInternalServerError)
 		return

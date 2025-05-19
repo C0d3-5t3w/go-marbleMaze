@@ -27,9 +27,11 @@ class Game {
     private goal: any;
     private currentLevelIndex: number = 0;
     private isPaused: boolean = false;
-
     private gameStartTime: number = 0;
     private gameEndTime: number = 0;
+    private elapsedTime: number = 0;
+    private pauseStartTime: number = 0;
+    private timerInterval: number | null = null;
 
     // Define manually created levels (first 17)
     private levels: Level[] = [];
@@ -436,6 +438,9 @@ class Game {
             // Set the start time when initializing
             this.gameStartTime = Date.now();
             
+            // Start the timer
+            this.startTimer();
+            
             this.animate();
             
             // Load highscores on initialization
@@ -459,8 +464,11 @@ class Game {
     private initThreeJS() {
         // Create scene
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x87ceeb); // Sky blue
-
+        this.scene.background = new THREE.Color(0x1B1B1B); // Dark background
+        
+        // Halloween fog
+        this.scene.fog = new THREE.FogExp2(0x663399, 0.02); // Purple fog
+        
         // Create camera
         this.camera = new THREE.PerspectiveCamera(
             75, window.innerWidth / window.innerHeight, 0.1, 1000
@@ -483,17 +491,22 @@ class Game {
     }
 
     private createLights() {
-        // Ambient light
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        // Ambient light - spooky dim light
+        const ambientLight = new THREE.AmbientLight(0x663399, 0.4); // Purple ambient light
         this.scene.add(ambientLight);
 
-        // Directional light (sun)
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        // Directional light - orange like a pumpkin glow
+        const directionalLight = new THREE.DirectionalLight(0xFF6600, 0.7);
         directionalLight.position.set(10, 20, 5);
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.width = 1024;
         directionalLight.shadow.mapSize.height = 1024;
         this.scene.add(directionalLight);
+        
+        // Add a green point light for spooky effect
+        const pointLight = new THREE.PointLight(0x44D62C, 0.6, 20);
+        pointLight.position.set(0, 5, 0);
+        this.scene.add(pointLight);
     }
 
     private createMaze() {
@@ -501,11 +514,12 @@ class Game {
         this.maze = new THREE.Group();
         this.scene.add(this.maze);
 
-        // Floor
+        // Floor - darker floor
         const floorGeometry = new THREE.BoxGeometry(this.mazeSize, 0.5, this.mazeSize);
         const floorMaterial = new THREE.MeshStandardMaterial({
-            color: 0x808080,
-            roughness: 0.7,
+            color: 0x1B1B1B, // Almost black
+            roughness: 0.9,
+            metalness: 0.1,
         });
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.receiveShadow = true;
@@ -514,14 +528,15 @@ class Game {
         // Outer walls
         this.createOuterWalls();
         
-        // Inner maze walls (create a simple maze layout)
+        // Inner maze walls
         this.createInnerWalls();
     }
 
     private createOuterWalls() {
         const wallMaterial = new THREE.MeshStandardMaterial({
-            color: 0x8b4513, // Brown
-            roughness: 0.8
+            color: 0x663399, // Purple walls
+            roughness: 0.7,
+            metalness: 0.2,
         });
         
         // Parameters for outer walls
@@ -553,10 +568,11 @@ class Game {
 
     private createInnerWalls() {
         const wallMaterial = new THREE.MeshStandardMaterial({
-            color: 0x8b4513, // Brown
-            roughness: 0.8
-        });
-        
+            color: 0x8B008B, // Dark magenta for inner walls
+            roughness: 0.8,
+            metalness: 0.1
+    });
+    
         // Get current level inner walls
         const currentLevel = this.levels[this.currentLevelIndex];
         const innerWalls = currentLevel.innerWalls;
@@ -577,9 +593,11 @@ class Game {
         // Create marble geometry and material
         const marbleGeometry = new THREE.SphereGeometry(this.marbleRadius, 32, 32);
         const marbleMaterial = new THREE.MeshStandardMaterial({
-            color: 0xff0000,
-            metalness: 0.3,
+            color: 0xFF6600, // Orange marble like a pumpkin
+            metalness: 0.6,
             roughness: 0.2,
+            emissive: 0xFF3300, // Slight glow
+            emissiveIntensity: 0.2
         });
         
         // Create marble mesh
@@ -606,9 +624,9 @@ class Game {
         // Create goal pad geometry and material
         const goalGeometry = new THREE.CylinderGeometry(0.7, 0.7, 0.1, 32);
         const goalMaterial = new THREE.MeshStandardMaterial({
-            color: 0x00ff00,
-            emissive: 0x00ff00,
-            emissiveIntensity: 0.5,
+            color: 0x44D62C, // Bright green goal
+            emissive: 0x44D62C, 
+            emissiveIntensity: 0.8, // Stronger glow
         });
         
         // Create goal mesh
@@ -641,33 +659,74 @@ class Game {
     }
 
     private togglePause() {
-        // Toggle the pause screen via DOM
+        this.isPaused = !this.isPaused;
+        
+        // Show/hide pause screen
         const pauseScreen = document.getElementById('pauseScreen');
         if (pauseScreen) {
             pauseScreen.classList.toggle('hidden');
         }
         
-        this.isPaused = !this.isPaused;
+        // Handle timer pause/resume
+        if (this.isPaused) {
+            this.pauseStartTime = Date.now();
+            this.pauseTimer();
+        } else {
+            // Adjust game start time to account for pause duration
+            if (this.pauseStartTime > 0) {
+                const pauseDuration = Date.now() - this.pauseStartTime;
+                this.gameStartTime += pauseDuration;
+                this.pauseStartTime = 0;
+            }
+            this.resumeTimer();
+        }
         
-        // If we just paused, stop the timer
-        // If we just unpaused, resume the timer
         console.log(`Game ${this.isPaused ? 'paused' : 'resumed'}`);
     }
-
-    public resetMarble() {
-        this.marble.position.set(
-            this.startPosition.x, 
-            this.marbleRadius + 0.25,
-            this.startPosition.z
-        );
-        this.marble.velocity.set(0, 0, 0);
-        this.gameWon = false;
+    
+    private startTimer() {
+        // Clear any existing timer
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
         
-        // Reset times when resetting the marble
-        this.gameStartTime = Date.now();
-        this.gameEndTime = 0;
+        // Update the timer every 100ms
+        this.timerInterval = window.setInterval(() => {
+            if (!this.isPaused && !this.gameWon) {
+                this.updateTimerDisplay();
+            }
+        }, 100);
     }
     
+    private pauseTimer() {
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+    }
+    
+    private resumeTimer() {
+        this.startTimer();
+    }
+    
+    private updateTimerDisplay() {
+        const currentTime = Date.now();
+        this.elapsedTime = (currentTime - this.gameStartTime) / 1000;
+        
+        const timerElement = document.getElementById('timer');
+        if (timerElement) {
+            timerElement.textContent = this.formatTime(this.elapsedTime);
+        }
+    }
+    
+    private formatTime(timeInSeconds: number): string {
+        const minutes = Math.floor(timeInSeconds / 60);
+        const seconds = Math.floor(timeInSeconds % 60);
+        const ms = Math.floor((timeInSeconds % 1) * 100);
+        
+        return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+    }
+
     private showErrorMessage(message: string) {
         // Show error in the UI instead of console
         const loadingScreen = document.getElementById('loadingScreen');
@@ -752,6 +811,13 @@ class Game {
         this.gameWon = false;
         this.gameStartTime = Date.now();
         this.gameEndTime = 0;
+        this.elapsedTime = 0;
+        this.pauseStartTime = 0;
+        this.isPaused = false;
+        
+        // Reset and start the timer
+        this.updateTimerDisplay();
+        this.startTimer();
         
         // Update level display
         this.updateLevelDisplay();
@@ -820,6 +886,39 @@ class Game {
         
         // Reload current level
         this.loadLevel(this.currentLevelIndex);
+    }
+
+    public resetMarble() {
+        // Reset marble position to start position
+        this.marble.position.set(
+            this.startPosition.x, 
+            this.marbleRadius + 0.25, // Place on floor with slight offset
+            this.startPosition.z
+        );
+        
+        // Reset velocity
+        this.marble.velocity.set(0, 0, 0);
+        
+        // Reset win state if needed
+        if (this.gameWon) {
+            this.gameWon = false;
+            
+            // Reset the marble color back to pumpkin orange
+            this.marble.material.color.set(0xFF6600);
+            
+            // Reset timer if needed
+            this.gameStartTime = Date.now();
+            this.gameEndTime = 0;
+            this.elapsedTime = 0;
+            this.updateTimerDisplay();
+            
+            // Restart timer if it was stopped
+            if (!this.timerInterval) {
+                this.startTimer();
+            }
+        }
+        
+        console.log("Marble reset to start position");
     }
 
     private updateMarblePhysics() {
@@ -947,19 +1046,100 @@ class Game {
             
             // Record end time and calculate duration
             this.gameEndTime = Date.now();
-            const gameTimeSeconds = (this.gameEndTime - this.gameStartTime) / 1000;
+            this.elapsedTime = (this.gameEndTime - this.gameStartTime) / 1000;
             
-            // Visual feedback for winning
-            this.marble.material.color.set(0x00ff00);
+            // Pause the timer
+            this.pauseTimer();
+            
+            // Visual feedback for winning - change to green
+            this.marble.material.color.set(0x44D62C); // Green marble on win
+            
+            // Add particle effect for winning
+            this.createWinParticles();
             
             // Show win screen with time
-            this.showWinScreen(gameTimeSeconds);
+            this.showWinScreen(this.elapsedTime);
             
             // Submit score to server
-            this.promptForNameAndSubmitScore(gameTimeSeconds);
+            this.promptForNameAndSubmitScore(this.elapsedTime);
         }
     }
     
+    // Add a simple particle effect for winning
+    private createWinParticles() {
+        // Create particles
+        const particleCount = 50;
+        const particles = new THREE.Group();
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = new THREE.Mesh(
+                new THREE.SphereGeometry(0.1, 8, 8),
+                new THREE.MeshBasicMaterial({ 
+                    color: i % 2 === 0 ? 0xFF6600 : 0x44D62C, // Alternate orange and green
+                    transparent: true,
+                    opacity: 0.8
+                })
+            );
+            
+            // Random positions around the goal
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * 2;
+            particle.position.set(
+                this.goalPosition.x + Math.cos(angle) * radius,
+                0.5 + Math.random() * 2,
+                this.goalPosition.z + Math.sin(angle) * radius
+            );
+            
+            // Store initial position and velocity
+            particle.userData = {
+                velocity: new THREE.Vector3(
+                    Math.random() * 0.05 - 0.025,
+                    Math.random() * 0.1 + 0.05,
+                    Math.random() * 0.05 - 0.025
+                ),
+                life: 60 + Math.random() * 60 // Frames to live
+            };
+            
+            particles.add(particle);
+        }
+        
+        this.scene.add(particles);
+        
+        // Animate particles
+        const animateParticles = () => {
+            if (particles.children.length === 0) {
+                this.scene.remove(particles);
+                return;
+            }
+            
+            for (let i = particles.children.length - 1; i >= 0; i--) {
+                const particle = particles.children[i];
+                const userData = particle.userData;
+                
+                // Update position
+                particle.position.add(userData.velocity);
+                
+                // Apply gravity
+                userData.velocity.y -= 0.002;
+                
+                // Reduce opacity
+                particle.material.opacity -= 0.01;
+                
+                // Remove if expired
+                userData.life--;
+                if (userData.life <= 0 || particle.position.y < 0) {
+                    particles.remove(particle);
+                }
+            }
+            
+            if (particles.children.length > 0) {
+                requestAnimationFrame(animateParticles);
+            }
+        };
+    
+        animateParticles();
+    }
+
     private showWinScreen(timeSeconds: number) {
         const winScreen = document.getElementById('winScreen');
         const timeSpan = document.querySelector('#completionTime span');
@@ -1024,17 +1204,26 @@ class Game {
             // Optionally update UI based on qualification status
             if (result.qualified) {
                 console.log('New highscore!');
-                // You could show a special message for new highscores
+                
+                // Show leaderboard after a successful submission
+                this.showHighscoresPanel();
             }
-            
-            // Load and display the leaderboard
-            this.loadHighscores();
             
         } catch (error) {
             console.error('Failed to submit score:', error);
         }
     }
     
+    private showHighscoresPanel() {
+        const highscoresPanel = document.getElementById('highscoresPanel');
+        if (highscoresPanel) {
+            highscoresPanel.classList.add('active');
+            // Trigger highscore update
+            this.loadHighscores();
+        }
+    }
+    
+    // Replace the existing loadHighscores method
     private async loadHighscores() {
         try {
             const response = await fetch('/api/highscores');
@@ -1042,25 +1231,71 @@ class Game {
             
             console.log('Highscores loaded:', highscores);
             
-            // TODO: Display highscores in the UI
-            // This could be implemented in a side panel or modal
+            // Update the highscores panel in the UI
+            this.displayHighscoresInUI(highscores);
             
         } catch (error) {
             console.error('Failed to load highscores:', error);
         }
     }
     
+    private displayHighscoresInUI(highscores: any[]) {
+        const highscoresList = document.getElementById('highscoresList');
+        if (!highscoresList) return;
+        
+        if (highscores.length === 0) {
+            highscoresList.innerHTML = '<p>No highscores yet. Be the first!</p>';
+            return;
+        }
+        
+        // Create a table to display highscores
+        let html = `
+            <table class="highscores-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Player</th>
+                        <th>Level</th>
+                        <th>Time</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        highscores.forEach((score, index) => {
+            const date = new Date(score.date).toLocaleDateString();
+            const formattedTime = this.formatTime(score.time);
+            
+            html += `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${score.playerName}</td>
+                    <td>${score.level}</td>
+                    <td>${formattedTime}</td>
+                    <td>${date}</td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table>';
+        highscoresList.innerHTML = html;
+    }
+
     private animate() {
         requestAnimationFrame(this.animate.bind(this));
         
-        // Apply tilt to maze based on orientation/mouse
-        this.maze.rotation.z = this.mazeTiltX;
-        this.maze.rotation.x = this.mazeTiltZ;
+        // Don't update physics if game is paused
+        if (!this.isPaused) {
+            // Apply tilt to maze based on orientation/mouse
+            this.maze.rotation.z = this.mazeTiltX;
+            this.maze.rotation.x = this.mazeTiltZ;
+            
+            // Update marble physics
+            this.updateMarblePhysics();
+        }
         
-        // Update marble physics
-        this.updateMarblePhysics();
-        
-        // Render scene
+        // Render scene (we still render even when paused)
         this.renderer.render(this.scene, this.camera);
     }
 }

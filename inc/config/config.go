@@ -12,8 +12,8 @@ type Config struct {
 }
 
 const (
-	DefaultConfigPath  = "pkg/config.json"
-	DefaultStoragePath = "pkg/storage.json"
+	DefaultConfigPath  = "config.json"
+	DefaultStoragePath = "storage.json"
 	EnvDevelopment     = "development"
 	EnvProduction      = "production"
 )

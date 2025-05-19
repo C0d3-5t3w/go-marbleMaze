@@ -2,7 +2,7 @@
 
 BINARY = MarbleMaze
 GO_MAIN = cmd/main.go
-GO_OUTPUT = bin
+GO_OUTPUT = MarbleMaze.app
 GO_BINARY = $(GO_OUTPUT)/$(BINARY)
 TS_DIR = pkg/assets/ts
 JS_DIR = $(GO_OUTPUT)/assets/js
@@ -30,6 +30,7 @@ ts:
 
 clean:
 	@rm -rf $(GO_OUTPUT)
+	@rm -f tsconfig.json
 
 install:
 	@npm install -g typescript sass
@@ -39,7 +40,7 @@ setup:
 	@cp -r $(CONFIG) $(GO_OUTPUT)/
 	@cp -r $(STORAGE) $(GO_OUTPUT)/
 	@mkdir -p $(JS_DIR) $(CSS_DIR)
-	@[ -f tsconfig.json ] || echo '{\n  "compilerOptions": {\n    "target": "es6",\n    "module": "es6",\n    "outDir": "./assets/js",\n    "rootDir": "./pkg/assets/ts",\n    "strict": true,\n    "esModuleInterop": true,\n    "skipLibCheck": true,\n    "forceConsistentCasingInFileNames": true,\n    "lib": ["dom", "es2015", "dom.iterable"]\n  },\n  "include": [\n    "pkg/assets/ts/**/*.ts"\n  ],\n  "exclude": [\n    "node_modules"\n  ]\n}' > tsconfig.json
+	@[ -f tsconfig.json ] || echo '{\n  "compilerOptions": {\n    "target": "es6",\n    "module": "es6",\n    "outDir": "./MarbleMaze.app/assets/js",\n    "rootDir": "./pkg/assets/ts",\n    "strict": true,\n    "esModuleInterop": true,\n    "skipLibCheck": true,\n    "forceConsistentCasingInFileNames": true,\n    "lib": ["dom", "es2015", "dom.iterable"]\n  },\n  "include": [\n    "pkg/assets/ts/**/*.ts"\n  ],\n  "exclude": [\n    "node_modules"\n  ]\n}' > tsconfig.json
 
 help:
 	@echo "Makefile for Go and TypeScript project"

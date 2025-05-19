@@ -1,3 +1,11 @@
+interface Highscore {
+    playerName: string;
+    score: number;
+    time: number;
+    level: number;
+    date: string;
+}
+
 class Main {
     private isLoaded: boolean = false;
     private isMobile: boolean = false;
@@ -197,7 +205,7 @@ class Main {
 
         try {
             const response = await fetch('/api/highscores');
-            const highscores = await response.json();
+            const highscores = await response.json() as Highscore[];
 
             if (highscores.length === 0) {
                 highscoresList.innerHTML = '<p>No highscores yet. Be the first!</p>';
@@ -219,7 +227,7 @@ class Main {
                     <tbody>
             `;
 
-            highscores.forEach((score, index) => {
+            highscores.forEach((score: Highscore, index: number) => {
                 const date = new Date(score.date).toLocaleDateString();
                 const minutes = Math.floor(score.time / 60);
                 const seconds = Math.floor(score.time % 60);

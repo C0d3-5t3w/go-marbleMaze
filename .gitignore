@@ -1,3 +1,4 @@
 MarbleMaze.app
 vendor
 .DS_Store
+tsconfig.json

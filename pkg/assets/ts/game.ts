@@ -49,45 +49,204 @@ class Game {
     ): [number, number, number, number][] {
         const walls: [number, number, number, number][] = [];
         const seed = levelIndex * 12345;
+
+        // Deterministic pseudo-random function
         const random = (min: number, max: number) => {
             const x = Math.sin(seed + walls.length) * 10000;
             return min + (x - Math.floor(x)) * (max - min);
         };
 
-        const numWalls = 10 + Math.min(40, Math.floor(levelIndex * 1.5));
-
         const mazeSize = this.getMazeSizeForLevel(levelIndex);
         const halfSize = Math.floor(mazeSize / 2) - 1;
 
-        for (let i = 0; i < 5; i++) {
-            const offset = i * 2;
+        // Grid size for the maze cells
+        const gridSize = Math.floor(mazeSize / 2);
 
-            walls.push([
-                -halfSize + offset,
-                -halfSize + i,
-                halfSize * 2 - offset * 2 - 2,
-                0.5,
-            ]);
-            walls.push([
-                -halfSize + i,
-                halfSize - offset,
-                halfSize * 2 - offset * 2 - 2,
-                0.5,
-            ]);
-
-            const gapX = Math.floor(random(-halfSize + 2, halfSize - 2));
-            const gapWidth = 1 + Math.floor(random(1, 3));
-
-            walls.push([-halfSize + i, -halfSize + offset + 1, 0.5, 2]);
-            walls.push([halfSize - i, -halfSize + offset + 1, 0.5, 2]);
+        // Create a grid for maze generation (true = wall, false = path)
+        const grid: boolean[][] = [];
+        for (let i = 0; i < gridSize; i++) {
+            grid[i] = [];
+            for (let j = 0; j < gridSize; j++) {
+                grid[i][j] = true; // Start with all walls
+            }
         }
 
-        for (let i = 0; i < numWalls - 10; i++) {
-            const x = Math.floor(random(-halfSize + 1, halfSize - 1));
-            const z = Math.floor(random(-halfSize + 1, halfSize - 1));
-            const width = Math.floor(random(1, 4));
-            const depth = Math.floor(random(1, 4));
-            walls.push([x, z, width, depth]);
+        // Generate maze using a simplified recursive backtracking algorithm
+        // This ensures a path exists from start to end
+        const generateMazePaths = (x: number, y: number, grid: boolean[][]) => {
+            const directions = [
+                [0, -1],
+                [1, 0],
+                [0, 1],
+                [-1, 0],
+            ]; // Up, Right, Down, Left
+
+            // Shuffle directions using our deterministic random
+            for (let i = directions.length - 1; i > 0; i--) {
+                const j = Math.floor(random(0, i + 1));
+                [directions[i], directions[j]] = [directions[j], directions[i]];
+            }
+
+            grid[x][y] = false; // Mark current cell as path
+
+            // Try each direction
+            for (const [dx, dy] of directions) {
+                const nx = x + dx * 2; // Move two cells (to skip walls between cells)
+                const ny = y + dy * 2;
+
+                // Check if next cell is within bounds and not visited
+                if (
+                    nx >= 0 &&
+                    nx < gridSize &&
+                    ny >= 0 &&
+                    ny < gridSize &&
+                    grid[nx][ny]
+                ) {
+                    // Carve a path by making the wall between current and next cell a path
+                    grid[x + dx][y + dy] = false;
+                    generateMazePaths(nx, ny, grid);
+                }
+            }
+        };
+
+        // Start from a cell near the entrance
+        const startX = 1;
+        const startY = 1;
+        generateMazePaths(startX, startY, grid);
+
+        // Ensure path to goal
+        // Find a cell near the goal
+        const goalX = gridSize - 2;
+        const goalY = gridSize - 2;
+
+        // Make sure there's a path to the goal
+        grid[goalX][goalY] = false;
+
+        // Connect the goal to the maze if it's not already connected
+        if (
+            grid[goalX - 1][goalY] &&
+            grid[goalX][goalY - 1] &&
+            grid[goalX + 1][goalY] &&
+            grid[goalX][goalY + 1]
+        ) {
+            // If the goal is surrounded by walls, break one wall
+            grid[goalX - 1][goalY] = false; // Break the left wall
+        }
+
+        // Convert grid to wall segments
+        for (let i = 0; i < gridSize; i++) {
+            for (let j = 0; j < gridSize; j++) {
+                if (grid[i][j]) {
+                    // Convert grid coordinates to maze coordinates
+                    const x = (i - gridSize / 2) * 2;
+                    const z = (j - gridSize / 2) * 2;
+
+                    // Create wall segments with varying sizes for visual interest
+                    const width = 0.5 + random(0, 0.3);
+                    const depth = 0.5 + random(0, 0.3);
+
+                    // Add wall to the list
+                    walls.push([x, z, width, depth]);
+                }
+            }
+        }
+
+        // Add some additional random obstacles for complexity
+        const numObstacles = 5 + Math.floor(levelIndex / 2);
+
+        for (let i = 0; i < numObstacles; i++) {
+            // Make sure obstacles don't block the start or goal
+            const x = Math.floor(random(-halfSize + 3, halfSize - 3));
+            const z = Math.floor(random(-halfSize + 3, halfSize - 3));
+
+            // Don't place obstacles near start or goal positions
+            const distanceToStart = Math.sqrt(
+                Math.pow(x - (-halfSize + 1), 2) +
+                    Math.pow(z - (-halfSize + 1), 2)
+            );
+
+            const distanceToGoal = Math.sqrt(
+                Math.pow(x - (halfSize - 1), 2) +
+                    Math.pow(z - (halfSize - 1), 2)
+            );
+
+            // Only place if far enough from start and goal
+            if (distanceToStart > 3 && distanceToGoal > 3) {
+                const width = 0.5 + random(0, 1.5);
+                const depth = 0.5 + random(0, 1.5);
+                walls.push([x, z, width, depth]);
+            }
+        }
+
+        // Add larger structures for visual interest
+        const numStructures = 2 + Math.floor(levelIndex / 5);
+
+        for (let i = 0; i < numStructures; i++) {
+            const structureType = Math.floor(random(0, 3));
+
+            if (structureType === 0) {
+                // Create a cross structure
+                const x = Math.floor(random(-halfSize + 5, halfSize - 5));
+                const z = Math.floor(random(-halfSize + 5, halfSize - 5));
+
+                // Check distance from start and goal
+                const distanceToStart = Math.sqrt(
+                    Math.pow(x - (-halfSize + 1), 2) +
+                        Math.pow(z - (-halfSize + 1), 2)
+                );
+
+                const distanceToGoal = Math.sqrt(
+                    Math.pow(x - (halfSize - 1), 2) +
+                        Math.pow(z - (halfSize - 1), 2)
+                );
+
+                if (distanceToStart > 5 && distanceToGoal > 5) {
+                    walls.push([x, z, 3, 0.5]); // Horizontal bar
+                    walls.push([x, z, 0.5, 3]); // Vertical bar
+                }
+            } else if (structureType === 1) {
+                // Create a square chamber
+                const size = 2 + Math.floor(random(0, 3));
+                const x = Math.floor(
+                    random(-halfSize + size + 3, halfSize - size - 3)
+                );
+                const z = Math.floor(
+                    random(-halfSize + size + 3, halfSize - size - 3)
+                );
+
+                // Check distance from start and goal
+                const distanceToStart = Math.sqrt(
+                    Math.pow(x - (-halfSize + 1), 2) +
+                        Math.pow(z - (-halfSize + 1), 2)
+                );
+
+                const distanceToGoal = Math.sqrt(
+                    Math.pow(x - (halfSize - 1), 2) +
+                        Math.pow(z - (halfSize - 1), 2)
+                );
+
+                if (distanceToStart > size + 3 && distanceToGoal > size + 3) {
+                    walls.push([x, z - size, size * 2, 0.5]); // Top wall
+                    walls.push([x, z + size, size * 2, 0.5]); // Bottom wall
+                    walls.push([x - size, z, 0.5, size * 2]); // Left wall
+                    walls.push([x + size, z, 0.5, size * 2]); // Right wall
+
+                    // Add a gap in one random wall
+                    const wallToBreak = Math.floor(random(0, 4));
+                    if (wallToBreak === 0) {
+                        walls.pop(); // Remove the last wall (right)
+                        walls.push([x + size, z - size / 2, 0.5, size]); // Upper half
+                        walls.push([x + size, z + size / 2, 0.5, size]); // Lower half
+                    } else if (wallToBreak === 1) {
+                        walls.pop(); // Remove the last wall
+                        walls.pop(); // Remove the second-to-last wall
+                        walls.push([x - size, z - size / 2, 0.5, size]); // Upper half of left wall
+                        walls.push([x - size, z + size / 2, 0.5, size]); // Lower half of left wall
+                        walls.push([x + size, z, 0.5, size * 2]); // Right wall (re-add)
+                    }
+                    // Otherwise leave the top or bottom wall with a gap
+                }
+            }
         }
 
         return walls;
@@ -95,15 +254,19 @@ class Game {
 
     private getMazeSizeForLevel(levelIndex: number): number {
         if (levelIndex < 17) {
+            // First 17 levels have explicit sizes
             const sizes = [
                 10, 10, 10, 10, 12, 12, 12, 14, 14, 16, 16, 16, 18, 18, 20, 20,
                 22,
             ];
             return sizes[levelIndex];
-        } else if (levelIndex < 20) {
-            return 22 + (levelIndex - 17) * 2;
+        } else if (levelIndex < 25) {
+            return 22 + (levelIndex - 17) * 2; // Levels 18-24
+        } else if (levelIndex < 35) {
+            return 38 + (levelIndex - 25) * 3; // Levels 25-34: bigger increases
         } else {
-            return Math.min(50, 26 + Math.floor((levelIndex - 20) / 5) * 2);
+            // Levels 35+ grow in size incrementally with larger jumps
+            return Math.min(80, 68 + Math.floor((levelIndex - 35) / 2) * 4);
         }
     }
 
@@ -605,44 +768,155 @@ class Game {
     }
 
     private createGoal() {
+        // Create goal pad geometry and material
         const goalGeometry = new THREE.CylinderGeometry(0.8, 0.8, 0.1, 32);
         const goalMaterial = new THREE.MeshStandardMaterial({
-            color: 0x44d62c,
-            emissive: 0x44d62c,
-            emissiveIntensity: 1.0,
+            color: 0x44D62C, // Bright green goal
+            emissive: 0x44D62C,
+            emissiveIntensity: 1.0, // Increased intensity
         });
 
+        // Create goal mesh
         this.goal = new THREE.Mesh(goalGeometry, goalMaterial);
-        this.goal.position.set(this.goalPosition.x, 0.3, this.goalPosition.z);
+        this.goal.position.set(
+            this.goalPosition.x,
+            0.3, // Slightly above floor
+            this.goalPosition.z
+        );
         this.goal.receiveShadow = true;
 
+        // Add to maze
         this.maze.add(this.goal);
 
-        const goalLight = new THREE.PointLight(0x44d62c, 1, 5);
-        goalLight.position.set(this.goalPosition.x, 1.5, this.goalPosition.z);
+        // Add a pulsating light above the goal
+        const goalLight = new THREE.PointLight(0x44D62C, 1, 5);
+        goalLight.position.set(
+            this.goalPosition.x,
+            1.5, // Above the goal
+            this.goalPosition.z
+        );
         this.maze.add(goalLight);
 
+        // Create a halo/ring around the goal
         const ringGeometry = new THREE.TorusGeometry(1.2, 0.1, 16, 32);
         const ringMaterial = new THREE.MeshStandardMaterial({
-            color: 0x44d62c,
-            emissive: 0x44d62c,
+            color: 0x44D62C,
+            emissive: 0x44D62C,
             emissiveIntensity: 0.7,
             transparent: true,
             opacity: 0.7,
         });
         const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-        ring.position.set(this.goalPosition.x, 0.3, this.goalPosition.z);
-        ring.rotation.x = Math.PI / 2;
+        ring.position.set(
+            this.goalPosition.x,
+            0.3, // Same height as goal
+            this.goalPosition.z
+        );
+        ring.rotation.x = Math.PI / 2; // Lay flat
         this.maze.add(ring);
 
+        // Add floating arrow pointing to goal
+        const arrowHeight = 2.5;
+        const arrowGeometry = new THREE.ConeGeometry(0.5, 1, 8);
+        const arrowMaterial = new THREE.MeshStandardMaterial({
+            color: 0x44D62C,
+            emissive: 0x44D62C,
+            emissiveIntensity: 0.7,
+            transparent: true,
+            opacity: 0.8,
+        });
+        const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+        arrow.position.set(
+            this.goalPosition.x,
+            arrowHeight, // Above the goal
+            this.goalPosition.z
+        );
+        arrow.rotation.x = Math.PI; // Point downward
+        this.maze.add(arrow);
+
+        // Add particle system around the goal
+        const particleCount = 30;
+        const particleGroup = new THREE.Group();
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = new THREE.Mesh(
+                new THREE.SphereGeometry(0.08, 8, 8),
+                new THREE.MeshBasicMaterial({
+                    color: 0x44D62C,
+                    transparent: true,
+                    opacity: 0.7,
+                })
+            );
+
+            // Calculate initial position on a circle around the goal
+            const angle = (i / particleCount) * Math.PI * 2;
+            const radius = 1.5;
+            const vertOffset = Math.sin(i * 0.5) * 0.5; // Vertical offset for variation
+
+            particle.position.set(
+                this.goalPosition.x + Math.cos(angle) * radius,
+                0.5 + vertOffset,
+                this.goalPosition.z + Math.sin(angle) * radius
+            );
+
+            // Store initial angle and other animation parameters
+            particle.userData = {
+                angle: angle,
+                radius: radius,
+                speed: 0.01 + Math.random() * 0.01,
+                vertSpeed: 0.005 + Math.random() * 0.01,
+                vertDirection: Math.random() > 0.5 ? 1 : -1,
+                initialY: 0.5 + vertOffset,
+            };
+
+            particleGroup.add(particle);
+        }
+
+        this.maze.add(particleGroup);
+
+        // Add animation to the goal light, ring, arrow and particles
         const animate = () => {
+            // Pulsating light intensity
             if (goalLight) {
                 const time = Date.now() * 0.001;
                 goalLight.intensity = 0.8 + Math.sin(time * 2) * 0.4;
             }
 
+            // Rotating ring
             if (ring) {
                 ring.rotation.z += 0.005;
+            }
+
+            // Floating arrow animation
+            if (arrow) {
+                const time = Date.now() * 0.001;
+                arrow.position.y = arrowHeight + Math.sin(time * 1.5) * 0.2;
+                arrow.rotation.z = Math.sin(time) * 0.1;
+            }
+
+            // Animate particles
+            if (particleGroup) {
+                particleGroup.children.forEach((particle: any) => {
+                    const data = particle.userData;
+
+                    // Update angle
+                    data.angle += data.speed;
+
+                    // Calculate new position
+                    particle.position.x =
+                        this.goalPosition.x + Math.cos(data.angle) * data.radius;
+                    particle.position.z =
+                        this.goalPosition.z + Math.sin(data.angle) * data.radius;
+
+                    // Update vertical position
+                    const vertOffset =
+                        Math.sin(Date.now() * 0.001 + data.angle * 3) * 0.3;
+                    particle.position.y = data.initialY + vertOffset;
+
+                    // Pulse opacity
+                    particle.material.opacity =
+                        0.4 + Math.sin(Date.now() * 0.002 + data.angle) * 0.3;
+                });
             }
 
             requestAnimationFrame(animate);

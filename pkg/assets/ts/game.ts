@@ -18,6 +18,9 @@ class Game {
     private walls: any[] = [];
     private goal: any;
 
+    private gameStartTime: number = 0;
+    private gameEndTime: number = 0;
+
     constructor() {
         console.log("Game constructor called");
     }
@@ -31,7 +34,14 @@ class Game {
             this.createMarble();
             this.createGoal();
             this.setupEventListeners();
+            
+            // Set the start time when initializing
+            this.gameStartTime = Date.now();
+            
             this.animate();
+            
+            // Load highscores on initialization
+            this.loadHighscores();
             
             // Notify that game is ready
             window.dispatchEvent(new Event('gameReady'));
@@ -276,7 +286,7 @@ class Game {
         }
     }
 
-    // Make resetMarble public so it can be called from UI
+    // Make this implementation public instead of private (around line 512)
     public resetMarble() {
         this.marble.position.set(
             this.startPosition.x, 
@@ -285,6 +295,10 @@ class Game {
         );
         this.marble.velocity.set(0, 0, 0);
         this.gameWon = false;
+        
+        // Reset times when resetting the marble
+        this.gameStartTime = Date.now();
+        this.gameEndTime = 0;
     }
 
     private updateMarblePhysics() {
@@ -406,23 +420,99 @@ class Game {
         const distance = Math.sqrt(dx * dx + dz * dz);
         
         // If marble is inside goal area
-        if (distance < 0.7) {
+        if (distance < 0.7 && !this.gameWon) {
             console.log("Goal reached! You win!");
             this.gameWon = true;
+            
+            // Record end time and calculate duration
+            this.gameEndTime = Date.now();
+            const gameTimeSeconds = (this.gameEndTime - this.gameStartTime) / 1000;
             
             // Visual feedback for winning
             this.marble.material.color.set(0x00ff00);
             
-            // Optional: add more visual/audio feedback here
+            // Show win screen with time
+            this.showWinScreen(gameTimeSeconds);
             
-            // Reset the game after a delay
-            setTimeout(() => {
-                this.resetMarble();
-                this.marble.material.color.set(0xff0000);
-            }, 3000);
+            // Submit score to server
+            this.promptForNameAndSubmitScore(gameTimeSeconds);
         }
     }
-
+    
+    private showWinScreen(timeSeconds: number) {
+        const winScreen = document.getElementById('winScreen');
+        const timeSpan = document.querySelector('#completionTime span');
+        
+        if (winScreen && timeSpan) {
+            // Format time nicely (MM:SS.ms)
+            const minutes = Math.floor(timeSeconds / 60);
+            const seconds = Math.floor(timeSeconds % 60);
+            const ms = Math.floor((timeSeconds % 1) * 100);
+            
+            const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+            timeSpan.textContent = formattedTime;
+            
+            winScreen.classList.remove('hidden');
+        }
+    }
+    
+    private promptForNameAndSubmitScore(timeSeconds: number) {
+        // Create a simple prompt for the player's name
+        // You could integrate this with your UI system rather than using alert/prompt
+        const playerName = prompt('Congratulations! Enter your name for the leaderboard:', 'Player');
+        
+        if (playerName) {
+            this.submitHighscore(playerName, 0, timeSeconds, 1);
+        }
+    }
+    
+    private async submitHighscore(playerName: string, score: number, timeSeconds: number, level: number) {
+        try {
+            const response = await fetch('/api/submit-score', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    playerName: playerName,
+                    score: score,
+                    time: timeSeconds,
+                    level: level
+                })
+            });
+            
+            const result = await response.json();
+            console.log('Score submission result:', result);
+            
+            // Optionally update UI based on qualification status
+            if (result.qualified) {
+                console.log('New highscore!');
+                // You could show a special message for new highscores
+            }
+            
+            // Load and display the leaderboard
+            this.loadHighscores();
+            
+        } catch (error) {
+            console.error('Failed to submit score:', error);
+        }
+    }
+    
+    private async loadHighscores() {
+        try {
+            const response = await fetch('/api/highscores');
+            const highscores = await response.json();
+            
+            console.log('Highscores loaded:', highscores);
+            
+            // TODO: Display highscores in the UI
+            // This could be implemented in a side panel or modal
+            
+        } catch (error) {
+            console.error('Failed to load highscores:', error);
+        }
+    }
+    
     private animate() {
         requestAnimationFrame(this.animate.bind(this));
         

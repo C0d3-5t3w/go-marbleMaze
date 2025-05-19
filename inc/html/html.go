@@ -34,6 +34,7 @@ var tmpl = template.Must(template.New("game").Parse(`
 					<button id="pauseBtn" class="control-btn" aria-label="Pause game">❚❚</button>
 					<button id="muteBtn" class="control-btn" aria-label="Toggle sound">🔊</button>
 					<button id="helpBtn" class="control-btn" aria-label="Help">?</button>
+					<button id="leaderboardBtn" class="control-btn" aria-label="View leaderboard">🏆</button>
 				</div>
 			</header>
 
@@ -94,6 +95,19 @@ var tmpl = template.Must(template.New("game").Parse(`
 								<li><strong>Tap ❚❚:</strong> Pause game</li>
 								<li><strong>Tap 🔊:</strong> Mute sound</li>
 							</ul>
+						</div>
+					</div>
+				</div>
+
+				<!-- Highscores panel - toggles with a leaderboard button -->
+				<div id="highscoresPanel" class="side-panel hidden">
+					<div class="panel-header">
+						<h2>Top Players</h2>
+						<button class="close-btn" aria-label="Close highscores">×</button>
+					</div>
+					<div class="panel-content">
+						<div id="highscoresList">
+							<div class="loading">Loading highscores...</div>
 						</div>
 					</div>
 				</div>

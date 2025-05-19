@@ -12,10 +12,9 @@ type Config struct {
 }
 
 const (
-	DefaultConfigPath  = "config.json"
-	DefaultStoragePath = "storage.json"
-	EnvDevelopment     = "development"
-	EnvProduction      = "production"
+	DefaultConfigPath = "config.json"
+	EnvDevelopment    = "development"
+	EnvProduction     = "production"
 )
 
 func LoadConfig() (*Config, error) {

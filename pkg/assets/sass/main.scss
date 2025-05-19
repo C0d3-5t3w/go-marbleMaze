@@ -1,39 +1,39 @@
 :root {
-    /* Halloween Theme Colors */
-    --color-primary: #FF6600; /* Pumpkin Orange */
-    --color-secondary: #8B008B; /* Dark Magenta */
-    --color-tertiary: #44D62C; /* Slime Green */
-    --color-quaternary: #663399; /* Rebecca Purple */
-    --color-quinary: #FF8C00; /* Dark Orange */
-    --color-senary: #7CFC00; /* Lawn Green for glow effects */
-    --color-septenary: #1B1B1B; /* Almost Black */
-    --color-octonary: #BD10E0; /* Bright Purple */
-    --color-nonary: #4A4A4A; /* Dark Gray */
-    --color-decimal: #9b9b9b; /* Medium Gray */
-    --color-11th: #2D0001; /* Very Dark Red */
-    --color-12th: #F5F5F5; /* Off White */
-    
-    --font-family-sans-serif: 'Helvetica Neue', Arial, sans-serif;
-    --font-family-serif: 'Georgia', serif;
-    
+    --color-primary: #ff6600;
+    --color-secondary: #8b008b;
+    --color-tertiary: #44d62c;
+    --color-quaternary: #663399;
+    --color-quinary: #ff8c00;
+    --color-senary: #7cfc00;
+    --color-septenary: #1b1b1b;
+    --color-octonary: #bd10e0;
+    --color-nonary: #4a4a4a;
+    --color-decimal: #9b9b9b;
+    --color-11th: #2d0001;
+    --color-12th: #f5f5f5;
+
+    --font-family-sans-serif: "Helvetica Neue", Arial, sans-serif;
+    --font-family-serif: "Georgia", serif;
+
     --font-size-small: 12px;
     --font-size-medium: 16px;
     --font-size-large: 20px;
-    
+
     --line-height-small: 1.2;
     --line-height-medium: 1.5;
     --line-height-large: 1.8;
-    
+
     --border-radius-small: 4px;
     --border-radius-medium: 8px;
     --border-radius-large: 16px;
 }
 
-html, body {
+html,
+body {
     height: 100%;
     margin: 0;
     padding: 0;
-    overflow: hidden; /* Prevent scrollbars if game is full screen */
+    overflow: hidden;
 }
 
 body {
@@ -44,13 +44,17 @@ body {
     background-color: var(--color-septenary);
 }
 
-/* Halloween theme specific styles */
 body.halloween-theme {
     background-color: var(--color-septenary);
     color: var(--color-12th);
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     font-family: var(--font-family-serif);
     color: var(--color-primary);
 }
@@ -78,14 +82,16 @@ button {
 button:hover {
     background-color: var(--color-quinary);
 }
-input, textarea {
+input,
+textarea {
     border: 1px solid var(--color-decimal);
     border-radius: var(--border-radius-small);
     padding: 10px;
     font-size: var(--font-size-medium);
     line-height: var(--line-height-medium);
 }
-input:focus, textarea:focus {
+input:focus,
+textarea:focus {
     border-color: var(--color-primary);
     outline: none;
 }
@@ -134,7 +140,8 @@ input:focus, textarea:focus {
     width: 100%;
     border-collapse: collapse;
 }
-.table th, .table td {
+.table th,
+.table td {
     border: 1px solid var(--color-decimal);
     padding: 10px;
     text-align: left;
@@ -181,7 +188,9 @@ input:focus, textarea:focus {
     .container {
         padding: 10px;
     }
-    .header, .footer, .navbar {
+    .header,
+    .footer,
+    .navbar {
         padding: 10px;
     }
     button {
@@ -209,7 +218,9 @@ input:focus, textarea:focus {
         background-color: var(--color-12th);
         color: var(--color-nonary);
     }
-    .header, .footer, .navbar {
+    .header,
+    .footer,
+    .navbar {
         display: none;
     }
     button {

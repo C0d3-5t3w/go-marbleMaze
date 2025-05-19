@@ -629,11 +629,11 @@ class Game {
 
     private createGoal() {
         // Create goal pad geometry and material
-        const goalGeometry = new THREE.CylinderGeometry(0.7, 0.7, 0.1, 32);
+        const goalGeometry = new THREE.CylinderGeometry(0.8, 0.8, 0.1, 32);
         const goalMaterial = new THREE.MeshStandardMaterial({
             color: 0x44D62C, // Bright green goal
             emissive: 0x44D62C, 
-            emissiveIntensity: 0.8, // Stronger glow
+            emissiveIntensity: 1.0, // Stronger glow (increased from 0.8)
         });
         
         // Create goal mesh
@@ -647,6 +647,51 @@ class Game {
         
         // Add to maze
         this.maze.add(this.goal);
+        
+        // Add a pulsating light above the goal
+        const goalLight = new THREE.PointLight(0x44D62C, 1, 5);
+        goalLight.position.set(
+            this.goalPosition.x,
+            1.5, // Above the goal
+            this.goalPosition.z
+        );
+        this.maze.add(goalLight);
+        
+        // Create a halo/ring around the goal
+        const ringGeometry = new THREE.TorusGeometry(1.2, 0.1, 16, 32);
+        const ringMaterial = new THREE.MeshStandardMaterial({
+            color: 0x44D62C,
+            emissive: 0x44D62C,
+            emissiveIntensity: 0.7,
+            transparent: true,
+            opacity: 0.7
+        });
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.position.set(
+            this.goalPosition.x,
+            0.3, // Same height as goal
+            this.goalPosition.z
+        );
+        ring.rotation.x = Math.PI / 2; // Lay flat
+        this.maze.add(ring);
+        
+        // Add animation to the goal light and ring
+        const animate = () => {
+            // Pulsating light intensity
+            if (goalLight) {
+                const time = Date.now() * 0.001;
+                goalLight.intensity = 0.8 + Math.sin(time * 2) * 0.4;
+            }
+            
+            // Rotating ring
+            if (ring) {
+                ring.rotation.z += 0.005;
+            }
+            
+            requestAnimationFrame(animate);
+        };
+        
+        animate();
     }
 
     // Define these methods before they're used

@@ -73,7 +73,7 @@ var tmpl = template.Must(template.New("game").Parse(`
 				<div id="instructionsModal" class="modal hidden">
 					<div class="modal-content">
 						<div class="modal-header">
-							<button class="close-modal" aria-label="Close instructions">How To Play:</button>
+							<h2>How To Play</h2>
 						</div>
 						<div class="modal-body">
 							<div class="desktop-instructions">
@@ -95,6 +95,9 @@ var tmpl = template.Must(template.New("game").Parse(`
 									<li><strong>Tap ❚❚:</strong> Pause game</li>
 									<li><strong>Tap 🔊:</strong> Mute sound</li>
 								</ul>
+							</div>
+							<div class="btn-group">
+								<button id="resumeBtn" class="primary-btn">Return to Game</button>
 							</div>
 						</div>
 					</div>
@@ -219,23 +222,54 @@ var tmpl = template.Must(template.New("game").Parse(`
 							leaderboardBtn.addEventListener('click', () => window.gameInstance.showHighscoresPanel());
 						}
 						
-						// Connect help button to show instructions modal
+						// Connect help button to show instructions modal and pause game
 						const helpBtn = document.getElementById('helpBtn');
 						if (helpBtn) {
 							helpBtn.addEventListener('click', () => {
 								const instructionsModal = document.getElementById('instructionsModal');
 								if (instructionsModal) {
 									instructionsModal.classList.remove('hidden');
+									// Pause the game when help is shown
+									if (!window.gameInstance.isPaused) {
+										window.gameInstance.togglePause(true); // Use silent pause
+									}
 								}
 							});
 						}
 						
-						// Connect all close modal buttons
+						// Connect Return to Game button with debugging
+						const returnToGameBtn = document.getElementById('returnToGameBtn');
+						if (returnToGameBtn) {
+							returnToGameBtn.addEventListener('click', () => {
+								console.log('Return to game button clicked');
+								const instructionsModal = document.getElementById('instructionsModal');
+								if (instructionsModal) {
+									instructionsModal.classList.add('hidden');
+									console.log('Instructions modal hidden');
+									// Resume the game
+									if (window.gameInstance.isPaused) {
+										console.log('Game is paused, resuming...');
+										window.gameInstance.togglePause(true); // Use silent pause
+									}
+								}
+							});
+						} else {
+							console.error('Return to game button not found!');
+						}
+						
+						// Connect all close modal buttons and resume game when closing help
 						document.querySelectorAll('.close-modal').forEach(btn => {
 							btn.addEventListener('click', () => {
+								console.log('Close modal button clicked');
 								const modal = btn.closest('.modal');
 								if (modal) {
 									modal.classList.add('hidden');
+									console.log('Modal hidden:', modal.id);
+									// Resume the game if closing the instructions modal
+									if (modal.id === 'instructionsModal' && window.gameInstance.isPaused) {
+										console.log('Resuming game after closing instructions');
+										window.gameInstance.togglePause(true); // Use silent pause
+									}
 								}
 							});
 						});

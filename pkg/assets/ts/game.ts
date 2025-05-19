@@ -26,15 +26,22 @@ class Game {
     private walls: any[] = [];
     private goal: any;
     private currentLevelIndex: number = 0;
-    private isPaused: boolean = false;
+    private timerInterval: number | null = null;
+    
+    // Add missing property declarations
+    private _isPaused: boolean = false;
     private gameStartTime: number = 0;
     private gameEndTime: number = 0;
     private elapsedTime: number = 0;
     private pauseStartTime: number = 0;
-    private timerInterval: number | null = null;
-
-    // Define manually created levels (first 17)
+    
+    // Define levels
     private levels: Level[] = [];
+
+    // Add getter for isPaused to make it accessible
+    public get isPaused(): boolean {
+        return this._isPaused;
+    }
 
     constructor() {
         console.log("Game constructor called");
@@ -658,17 +665,19 @@ class Game {
         this.mazeTiltZ = ((event.clientY / window.innerHeight) - 0.5) * Math.PI * sensitivity;
     }
 
-    private togglePause() {
-        this.isPaused = !this.isPaused;
+    private togglePause(silent: boolean = false) {
+        this._isPaused = !this._isPaused;
         
-        // Show/hide pause screen
-        const pauseScreen = document.getElementById('pauseScreen');
-        if (pauseScreen) {
-            pauseScreen.classList.toggle('hidden');
+        // Show/hide pause screen (but only if not in silent mode)
+        if (!silent) {
+            const pauseScreen = document.getElementById('pauseScreen');
+            if (pauseScreen) {
+                pauseScreen.classList.toggle('hidden');
+            }
         }
         
         // Handle timer pause/resume
-        if (this.isPaused) {
+        if (this._isPaused) {
             this.pauseStartTime = Date.now();
             this.pauseTimer();
         } else {
@@ -681,7 +690,7 @@ class Game {
             this.resumeTimer();
         }
         
-        console.log(`Game ${this.isPaused ? 'paused' : 'resumed'}`);
+        console.log(`Game ${this._isPaused ? 'paused' : 'resumed'}${silent ? ' (silent)' : ''}`);
     }
     
     private startTimer() {
@@ -692,7 +701,7 @@ class Game {
         
         // Update the timer every 100ms
         this.timerInterval = window.setInterval(() => {
-            if (!this.isPaused && !this.gameWon) {
+            if (!this._isPaused && !this.gameWon) {
                 this.updateTimerDisplay();
             }
         }, 100);
@@ -813,7 +822,7 @@ class Game {
         this.gameEndTime = 0;
         this.elapsedTime = 0;
         this.pauseStartTime = 0;
-        this.isPaused = false;
+        this._isPaused = false;
         
         // Reset and start the timer
         this.updateTimerDisplay();
@@ -1286,7 +1295,7 @@ class Game {
         requestAnimationFrame(this.animate.bind(this));
         
         // Don't update physics if game is paused
-        if (!this.isPaused) {
+        if (!this._isPaused) {
             // Apply tilt to maze based on orientation/mouse
             this.maze.rotation.z = this.mazeTiltX;
             this.maze.rotation.x = this.mazeTiltZ;

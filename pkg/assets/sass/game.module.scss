@@ -1,0 +1,18 @@
+#gameContainer {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #333;
+    position: fixed; /* Or absolute, depending on layout needs */
+    top: 0;
+    left: 0;
+    z-index: -1; /* Send it behind other content if needed, or adjust */
+}
+
+#gameCanvas {
+    width: 100%;
+    height: 100%;
+    display: block; /* Remove extra space below canvas */
+}

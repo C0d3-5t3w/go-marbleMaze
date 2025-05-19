@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "es6",
+    "outDir": "./bin/assets/js",
+    "rootDir": "./pkg/assets/ts",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "lib": ["dom", "es2015", "dom.iterable"]
+  },
+  "include": [
+    "pkg/assets/ts/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

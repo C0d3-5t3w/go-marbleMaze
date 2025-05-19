@@ -11,6 +11,13 @@ class Main {
         console.log("Initializing main application");
         this.setupUI();
         this.checkBrowserSupport();
+        
+        // Hide loading screen after initialization
+        this.hideLoadingScreen();
+        
+        // Setup event listeners for UI elements
+        this.setupEventListeners();
+        
         this.isLoaded = true;
     }
 
@@ -23,37 +30,129 @@ class Main {
         document.body.classList.add(this.isMobile ? 'mobile' : 'desktop');
     }
 
-    private setupUI() {
-        // Create game UI elements like score, restart button, etc.
-        const header = document.querySelector('h1');
-        if (header) {
-            // Style the header to overlay on the game
-            header.style.position = 'absolute';
-            header.style.top = '10px';
-            header.style.left = '0';
-            header.style.width = '100%';
-            header.style.textAlign = 'center';
-            header.style.color = 'white';
-            header.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
-            header.style.zIndex = '10';
-            header.style.pointerEvents = 'none';
+    private hideLoadingScreen() {
+        // Hide the loading screen after a short delay to ensure everything is ready
+        setTimeout(() => {
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) {
+                loadingScreen.classList.add('hidden');
+                console.log('Loading screen hidden');
+            } else {
+                console.error('Loading screen element not found');
+            }
+        }, 1000); // 1-second delay to ensure Three.js has initialized
+    }
+
+    private setupEventListeners() {
+        // Set up event listeners for all UI buttons
+        this.setupControlButtons();
+        this.setupModalHandlers();
+    }
+
+    private setupControlButtons() {
+        // Reset button
+        const resetBtn = document.getElementById('resetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                console.log('Reset button clicked');
+                // Game.resetMarble(); - This would be called if exposed from game.ts
+                // Instead, we'll simulate a key press
+                const resetEvent = new KeyboardEvent('keydown', { key: 'r' });
+                window.dispatchEvent(resetEvent);
+            });
         }
 
-        // Create instructions
-        const instructions = document.createElement('div');
-        instructions.innerHTML = this.isMobile ? 
-            'Tilt your device to move the marble!' : 
-            'Move your mouse to tilt the maze! Press R to reset.';
-        instructions.style.position = 'absolute';
-        instructions.style.bottom = '50px';
-        instructions.style.left = '0';
-        instructions.style.width = '100%';
-        instructions.style.textAlign = 'center';
-        instructions.style.color = 'white';
-        instructions.style.background = 'rgba(0,0,0,0.5)';
-        instructions.style.padding = '10px';
-        instructions.style.zIndex = '10';
-        document.body.appendChild(instructions);
+        // Pause button
+        const pauseBtn = document.getElementById('pauseBtn');
+        if (pauseBtn) {
+            pauseBtn.addEventListener('click', () => {
+                console.log('Pause button clicked');
+                this.togglePauseScreen();
+            });
+        }
+
+        // Help button
+        const helpBtn = document.getElementById('helpBtn');
+        if (helpBtn) {
+            helpBtn.addEventListener('click', () => {
+                console.log('Help button clicked');
+                this.toggleInstructionsPanel();
+            });
+        }
+
+        // Resume button
+        const resumeBtn = document.getElementById('resumeBtn');
+        if (resumeBtn) {
+            resumeBtn.addEventListener('click', () => {
+                this.togglePauseScreen();
+            });
+        }
+
+        // Close instruction button
+        const closeBtn = document.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                this.toggleInstructionsPanel();
+            });
+        }
+    }
+
+    private setupModalHandlers() {
+        // About link
+        const aboutLink = document.getElementById('aboutLink');
+        if (aboutLink) {
+            aboutLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showModal('aboutModal');
+            });
+        }
+
+        // Privacy link
+        const privacyLink = document.getElementById('privacyLink');
+        if (privacyLink) {
+            privacyLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showModal('privacyModal');
+            });
+        }
+
+        // Close modal buttons
+        const closeModalBtns = document.querySelectorAll('.close-modal');
+        closeModalBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const modal = btn.closest('.modal') as HTMLElement;
+                if (modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+    }
+
+    private showModal(modalId: string) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('active');
+        }
+    }
+
+    private togglePauseScreen() {
+        const pauseScreen = document.getElementById('pauseScreen');
+        if (pauseScreen) {
+            pauseScreen.classList.toggle('hidden');
+        }
+    }
+
+    private toggleInstructionsPanel() {
+        const instructionsPanel = document.getElementById('instructionsPanel');
+        if (instructionsPanel) {
+            instructionsPanel.classList.toggle('active');
+        }
+    }
+
+    private setupUI() {
+        // This function is no longer needed in the new UI structure
+        // as all UI elements are defined in the HTML template
+        console.log('UI setup handled by HTML template');
     }
 
     private checkBrowserSupport() {

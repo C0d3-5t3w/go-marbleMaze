@@ -24,13 +24,22 @@ class Game {
 
     init() {
         console.log("Initializing 3D Marble Maze game");
-        this.initThreeJS();
-        this.createLights();
-        this.createMaze();
-        this.createMarble();
-        this.createGoal();
-        this.setupEventListeners();
-        this.animate();
+        try {
+            this.initThreeJS();
+            this.createLights();
+            this.createMaze();
+            this.createMarble();
+            this.createGoal();
+            this.setupEventListeners();
+            this.animate();
+            
+            // Notify that game is ready
+            window.dispatchEvent(new Event('gameReady'));
+            console.log("Game initialization complete");
+        } catch (error) {
+            console.error("Error initializing game:", error);
+            this.showErrorMessage("Failed to initialize game. Please refresh the page.");
+        }
     }
 
     private initThreeJS() {
@@ -220,12 +229,25 @@ class Game {
         // Fallback to mouse for desktop
         document.addEventListener('mousemove', this.handleMouseMove.bind(this));
         
-        // Reset button (can be implemented with a UI overlay)
+        // Add pause functionality
         window.addEventListener('keydown', (event) => {
-            if (event.key === 'r' || event.key === 'R') {
+            if (event.key === 'p' || event.key === 'P') {
+                this.togglePause();
+            } else if (event.key === 'r' || event.key === 'R') {
                 this.resetMarble();
             }
         });
+    }
+    
+    private togglePause() {
+        // Toggle the pause screen via DOM
+        const pauseScreen = document.getElementById('pauseScreen');
+        if (pauseScreen) {
+            pauseScreen.classList.toggle('hidden');
+        }
+        
+        // You could also pause the game logic here
+        // this.isPaused = !this.isPaused;
     }
 
     private handleOrientation(event: DeviceOrientationEvent) {
@@ -243,7 +265,19 @@ class Game {
         this.mazeTiltZ = ((event.clientY / window.innerHeight) - 0.5) * Math.PI * sensitivity;
     }
 
-    private resetMarble() {
+    private showErrorMessage(message: string) {
+        // Show error in the UI instead of console
+        const loadingScreen = document.getElementById('loadingScreen');
+        if (loadingScreen) {
+            const content = loadingScreen.querySelector('.overlay-content');
+            if (content) {
+                content.innerHTML = `<h2>Error</h2><p>${message}</p>`;
+            }
+        }
+    }
+
+    // Make resetMarble public so it can be called from UI
+    public resetMarble() {
         this.marble.position.set(
             this.startPosition.x, 
             this.marbleRadius + 0.25,

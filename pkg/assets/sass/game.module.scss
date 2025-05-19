@@ -183,6 +183,7 @@
 
 .side-panel.active {
   transform: translateX(0);
+  display: block; /* Ensure it's displayed when active */
 }
 
 .panel-header {
@@ -225,6 +226,7 @@
 .modal.active {
   opacity: 1;
   visibility: visible;
+  display: flex; /* Ensure it's displayed when active */
 }
 
 .modal-content {
@@ -310,6 +312,8 @@
 /* Utility Classes */
 .hidden {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
 }
 
 /* Responsive Design */
